@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+
+  datasource:
+    url: jdbc:postgresql://postgres:5432/flowforge
+    username: flowforge
+    password: flowforge
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+  kafka:
+    bootstrap-servers: kafka:9092
