@@ -56,4 +56,26 @@ public class GlobalExceptionHandler {
                     .build()
             );
     }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Void>> handle(
+        UnauthorizedException ex
+    ) {
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(
+                ApiResponse.<Void>builder()
+                    .success(false)
+                    .timestamp(Instant.now())
+                    .errors(
+                        List.of(
+                            ApiError.builder()
+                                .code(ErrorCode.UNAUTHORIZED.name())
+                                .message(ex.getMessage())
+                                .build()
+                        )
+                    )
+                    .build()
+            );
+    }
 }

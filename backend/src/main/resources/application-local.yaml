@@ -63,3 +63,10 @@ logging:
   level:
     root: INFO
     com.flowforge: DEBUG
+
+flowforge:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:change-this-development-secret-key-to-a-long-random-value}
+      access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
+      refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}
