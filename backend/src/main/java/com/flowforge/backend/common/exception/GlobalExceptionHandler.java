@@ -35,4 +35,25 @@ public class GlobalExceptionHandler {
 
     }
 
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Void>> handle(
+        DuplicateResourceException ex
+    ) {
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(
+                ApiResponse.<Void>builder()
+                    .success(false)
+                    .timestamp(Instant.now())
+                    .errors(
+                        List.of(
+                            ApiError.builder()
+                                .code(ErrorCode.DUPLICATE_RESOURCE.name())
+                                .message(ex.getMessage())
+                                .build()
+                        )
+                    )
+                    .build()
+            );
+    }
 }
