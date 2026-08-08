@@ -52,4 +52,21 @@ public class WorkspaceController {
             workspaceService.getUserWorkspaces(userId)
         );
     }
+
+    @GetMapping("/{workspaceId}")
+    public ApiResponse<WorkspaceResponse> getWorkspace(
+        Authentication authentication,
+        @PathVariable UUID workspaceId
+    ) {
+
+        UUID userId =
+            UUID.fromString(authentication.getName());
+
+        return ApiResponse.success(
+            workspaceService.getWorkspace(
+                workspaceId,
+                userId
+            )
+        );
+    }
 }

@@ -4,6 +4,7 @@ import com.flowforge.backend.common.persistence.BaseRepository;
 import com.flowforge.backend.workspace.entity.WorkspaceMember;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface WorkspaceMemberRepository
@@ -12,6 +13,11 @@ public interface WorkspaceMemberRepository
     List<WorkspaceMember> findAllByUserIdAndActiveTrue(UUID userId);
 
     boolean existsByWorkspaceIdAndUserId(
+        UUID workspaceId,
+        UUID userId
+    );
+
+    Optional<WorkspaceMember> findByWorkspaceIdAndUserIdAndActiveTrue(
         UUID workspaceId,
         UUID userId
     );

@@ -25,6 +25,7 @@ public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final WorkspaceContext workspaceContext;
 
     @Transactional
     public WorkspaceResponse create(
@@ -99,5 +100,27 @@ public class WorkspaceService {
             .toLowerCase()
             .replaceAll("[^a-z0-9]+", "-")
             .replaceAll("(^-|-$)", "");
+    }
+
+    @Transactional(readOnly = true)
+    public WorkspaceResponse getWorkspace(
+        UUID workspaceId,
+        UUID userId
+    ) {
+
+        WorkspaceMember member =
+            workspaceContext.requireMembership(
+                workspaceId,
+                userId
+            );
+
+        Workspace workspace = member.getWorkspace();
+
+        return new WorkspaceResponse(
+            workspace.getId(),
+            workspace.getName(),
+            workspace.getSlug(),
+            member.getRole()
+        );
     }
 }
