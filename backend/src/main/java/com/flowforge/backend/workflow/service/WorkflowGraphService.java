@@ -83,13 +83,10 @@ public class WorkflowGraphService {
          * This is appropriate because an unpublished workflow version
          * represents the current editable snapshot.
          */
-        edgeRepository
-            .findAllByWorkflowVersionId(version.getId())
-            .forEach(edgeRepository::delete);
+        edgeRepository.deleteAllByWorkflowVersionId(version.getId());
+        nodeRepository.deleteAllByWorkflowVersionId(version.getId());
 
-        nodeRepository
-            .findAllByWorkflowVersionId(version.getId())
-            .forEach(nodeRepository::delete);
+        nodeRepository.flush();
 
         Map<String, WorkflowNode> nodesByKey =
             new HashMap<>();
