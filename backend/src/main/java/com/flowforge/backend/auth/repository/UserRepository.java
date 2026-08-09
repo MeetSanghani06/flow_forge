@@ -1,7 +1,7 @@
 package com.flowforge.backend.auth.repository;
 
 import com.flowforge.backend.auth.entity.User;
-import com.flowforge.backend.common.persistence.BaseRepository;
+import com.flowforge.backend.common.entity.BaseRepository;
 
 import java.util.Optional;
 

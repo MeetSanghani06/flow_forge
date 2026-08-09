@@ -1,6 +1,6 @@
 package com.flowforge.backend.connector.repository;
 
-import com.flowforge.backend.common.persistence.BaseRepository;
+import com.flowforge.backend.common.entity.BaseRepository;
 import com.flowforge.backend.connector.entity.Connector;
 
 import java.util.List;

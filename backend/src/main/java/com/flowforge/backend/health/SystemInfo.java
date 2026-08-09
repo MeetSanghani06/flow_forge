@@ -1,6 +1,6 @@
 package com.flowforge.backend.health;
 
-import com.flowforge.backend.common.persistence.BaseEntity;
+import com.flowforge.backend.common.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;

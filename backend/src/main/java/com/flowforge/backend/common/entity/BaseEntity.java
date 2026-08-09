@@ -1,4 +1,4 @@
-package com.flowforge.backend.common.persistence;
+package com.flowforge.backend.common.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

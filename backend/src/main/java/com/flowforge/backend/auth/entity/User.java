@@ -1,6 +1,6 @@
 package com.flowforge.backend.auth.entity;
 
-import com.flowforge.backend.common.persistence.BaseEntity;
+import com.flowforge.backend.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

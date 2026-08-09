@@ -1,6 +1,6 @@
 package com.flowforge.backend.workspace.repository;
 
-import com.flowforge.backend.common.persistence.BaseRepository;
+import com.flowforge.backend.common.entity.BaseRepository;
 import com.flowforge.backend.workspace.entity.WorkspaceMember;
 
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.flowforge.backend.workflow.repository;
 
-import com.flowforge.backend.common.persistence.BaseRepository;
+import com.flowforge.backend.common.entity.BaseRepository;
 import com.flowforge.backend.workflow.entity.Workflow;
 
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.flowforge.backend.connector.entity;
 
-import com.flowforge.backend.common.persistence.BaseEntity;
+import com.flowforge.backend.common.entity.BaseEntity;
 import com.flowforge.backend.workspace.entity.Workspace;
 import jakarta.persistence.*;
 import lombok.Getter;
