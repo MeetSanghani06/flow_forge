@@ -12,6 +12,7 @@ import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowNodeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowRepository;
 import com.flowforge.backend.workflow.repository.WorkflowVersionRepository;
+import com.flowforge.backend.workflow.validation.WorkflowGraphValidator;
 import com.flowforge.backend.workspace.service.WorkspaceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class WorkflowGraphService {
     private final WorkflowNodeRepository nodeRepository;
     private final WorkflowEdgeRepository edgeRepository;
     private final WorkspaceContext workspaceContext;
+    private final WorkflowGraphValidator graphValidator;
 
     @Transactional
     public WorkflowGraphResponse saveGraph(
@@ -73,8 +75,7 @@ public class WorkflowGraphService {
             );
         }
 
-        validateNodeKeys(request.nodes());
-        validateEdges(request);
+        graphValidator.validate(request);
         validateConnectorIds(request.nodes());
 
         /*
