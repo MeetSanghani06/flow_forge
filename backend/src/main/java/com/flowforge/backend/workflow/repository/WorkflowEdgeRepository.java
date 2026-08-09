@@ -24,4 +24,15 @@ public interface WorkflowEdgeRepository
     void deleteAllByWorkflowVersionId(
         @Param("workflowVersionId") UUID workflowVersionId
     );
+
+    @Query("""
+    SELECT e
+    FROM WorkflowEdge e
+    JOIN FETCH e.sourceNode
+    JOIN FETCH e.targetNode
+    WHERE e.workflowVersion.id = :workflowVersionId
+""")
+    List<WorkflowEdge> findAllForExecution(
+        @Param("workflowVersionId") UUID workflowVersionId
+    );
 }

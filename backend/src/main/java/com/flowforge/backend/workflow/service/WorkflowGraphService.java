@@ -17,6 +17,7 @@ import com.flowforge.backend.workspace.service.WorkspaceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,6 +32,7 @@ public class WorkflowGraphService {
     private final WorkflowEdgeRepository edgeRepository;
     private final WorkspaceContext workspaceContext;
     private final WorkflowGraphValidator graphValidator;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public WorkflowGraphResponse saveGraph(
@@ -100,7 +102,7 @@ public class WorkflowGraphService {
             node.setNodeKey(nodeRequest.nodeKey().trim());
             node.setName(nodeRequest.name().trim());
             node.setType(nodeRequest.type());
-            node.setConfiguration(nodeRequest.configuration());
+            node.setConfiguration(objectMapper.writeValueAsString(nodeRequest.configuration()));
 
             if (nodeRequest.connectorId() != null &&
                 !nodeRequest.connectorId().isBlank()) {

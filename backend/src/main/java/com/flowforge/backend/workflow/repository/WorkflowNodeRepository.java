@@ -30,4 +30,14 @@ public interface WorkflowNodeRepository
     void deleteAllByWorkflowVersionId(
         @Param("workflowVersionId") UUID workflowVersionId
     );
+
+    @Query("""
+    SELECT n
+    FROM WorkflowNode n
+    JOIN FETCH n.workflowVersion
+    WHERE n.workflowVersion.id = :workflowVersionId
+""")
+    List<WorkflowNode> findAllForExecution(
+        @Param("workflowVersionId") UUID workflowVersionId
+    );
 }

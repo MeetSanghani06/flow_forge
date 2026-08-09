@@ -6,11 +6,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class LoggingNodeExecutor implements NodeExecutor {
+public class TriggerNodeExecutor implements NodeExecutor {
 
     @Override
     public boolean supports(WorkflowNode node) {
-        return true;
+        return "TRIGGER".equals(node.getType().name());
     }
 
     @Override
@@ -20,9 +20,8 @@ public class LoggingNodeExecutor implements NodeExecutor {
     ) {
 
         log.info(
-            "WORKFLOW_NODE_EXECUTED | key={} | type={}",
-            node.getNodeKey(),
-            node.getType()
+            "TRIGGER_NODE_EXECUTED | key={}",
+            node.getNodeKey()
         );
     }
 }

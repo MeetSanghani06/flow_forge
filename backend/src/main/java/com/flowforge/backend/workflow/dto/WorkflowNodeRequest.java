@@ -4,6 +4,7 @@ import com.flowforge.backend.workflow.entity.NodeType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import tools.jackson.databind.JsonNode;
 
 public record WorkflowNodeRequest(
 
@@ -20,7 +21,7 @@ public record WorkflowNodeRequest(
 
     String connectorId,
 
-    String configuration
+    JsonNode configuration
 
 ) {
 }

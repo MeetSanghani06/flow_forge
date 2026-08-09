@@ -25,22 +25,6 @@ public class WorkflowExecutionController {
     public WorkflowExecutionResult execute(
         @PathVariable UUID workflowVersionId
     ) {
-
-        List<WorkflowNode> nodes =
-            nodeRepository
-                .findAllByWorkflowVersionId(
-                    workflowVersionId
-                );
-
-        List<WorkflowEdge> edges =
-            edgeRepository
-                .findAllByWorkflowVersionId(
-                    workflowVersionId
-                );
-
-        return executionService.execute(
-            nodes,
-            edges
-        );
+        return executionService.execute(workflowVersionId);
     }
 }

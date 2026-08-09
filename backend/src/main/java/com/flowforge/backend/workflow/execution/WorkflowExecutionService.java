@@ -2,9 +2,12 @@ package com.flowforge.backend.workflow.execution;
 
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
+import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
+import com.flowforge.backend.workflow.repository.WorkflowNodeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -13,9 +16,29 @@ import java.util.*;
 @Slf4j
 public class WorkflowExecutionService {
 
+    private final WorkflowNodeRepository nodeRepository;
+    private final WorkflowEdgeRepository edgeRepository;
     private final List<NodeExecutor> nodeExecutors;
 
+    @Transactional
     public WorkflowExecutionResult execute(
+        UUID workflowVersionId
+    ) {
+
+        List<WorkflowNode> nodes =
+            nodeRepository.findAllForExecution(
+                workflowVersionId
+            );
+
+        List<WorkflowEdge> edges =
+            edgeRepository.findAllForExecution(
+                workflowVersionId
+            );
+
+        return executeGraph(nodes, edges);
+    }
+
+    private WorkflowExecutionResult executeGraph(
         List<WorkflowNode> nodes,
         List<WorkflowEdge> edges
     ) {
@@ -36,8 +59,14 @@ public class WorkflowExecutionService {
         for (WorkflowNode node : nodes) {
 
             nodesById.put(node.getId(), node);
-            adjacency.put(node.getId(), new ArrayList<>());
-            indegree.put(node.getId(), 0);
+            adjacency.put(
+                node.getId(),
+                new ArrayList<>()
+            );
+            indegree.put(
+                node.getId(),
+                0
+            );
         }
 
         for (WorkflowEdge edge : edges) {
@@ -48,9 +77,18 @@ public class WorkflowExecutionService {
             UUID targetId =
                 edge.getTargetNode().getId();
 
+            WorkflowNode targetNode =
+                nodesById.get(targetId);
+
+            if (targetNode == null) {
+                throw new IllegalStateException(
+                    "Target node not found: " + targetId
+                );
+            }
+
             adjacency
                 .get(sourceId)
-                .add(edge.getTargetNode());
+                .add(targetNode);
 
             indegree.put(
                 targetId,
