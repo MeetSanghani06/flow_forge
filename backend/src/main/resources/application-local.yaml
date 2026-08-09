@@ -63,6 +63,9 @@ logging:
   level:
     root: INFO
     com.flowforge: DEBUG
+    com.flowforge.backend.workflow.execution: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
 
 flowforge:
   security:

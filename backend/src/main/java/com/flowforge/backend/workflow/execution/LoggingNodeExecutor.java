@@ -20,7 +20,7 @@ public class LoggingNodeExecutor implements NodeExecutor {
     ) {
 
         log.info(
-            "Executing node: key={}, type={}",
+            "WORKFLOW_NODE_EXECUTED | key={} | type={}",
             node.getNodeKey(),
             node.getType()
         );
