@@ -56,4 +56,44 @@ public class WorkflowVersionController {
             )
         );
     }
+
+    @PostMapping("/{versionNumber}/clone")
+    public ApiResponse<WorkflowVersionResponse> cloneVersion(
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID workflowId,
+        @PathVariable int versionNumber,
+        Authentication authentication
+    ) {
+        UUID userId =
+            UUID.fromString(authentication.getName());
+
+        return ApiResponse.success(
+            versionService.cloneVersion(
+            workspaceId,
+            workflowId,
+            versionNumber,
+            userId
+            )
+        );
+    }
+
+    @PostMapping(
+        "/{versionNumber}/publish"
+    )
+    public WorkflowVersionResponse publishVersion(
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID workflowId,
+        @PathVariable int versionNumber,
+        Authentication authentication
+    ) {
+        UUID userId =
+            UUID.fromString(authentication.getName());
+
+        return versionService.publishVersion(
+            workspaceId,
+            workflowId,
+            versionNumber,
+            userId
+        );
+    }
 }

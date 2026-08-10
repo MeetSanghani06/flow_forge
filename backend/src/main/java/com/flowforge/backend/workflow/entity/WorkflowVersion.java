@@ -8,6 +8,15 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "workflow_versions",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_workflow_version_number",
+            columnNames = {
+                "workflow_id",
+                "version_number"
+            }
+        )
+    },
     indexes = {
         @Index(
             name = "idx_workflow_versions_workflow_id",
