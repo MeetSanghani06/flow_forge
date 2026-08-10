@@ -3,9 +3,13 @@ package com.flowforge.backend.workflow.execution;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.UUID;
+
 @Getter
 @Builder
 public class WorkflowExecutionResult {
+
+    private final UUID executionId;
 
     private final boolean success;
 
@@ -15,21 +19,26 @@ public class WorkflowExecutionResult {
 
     private final String errorMessage;
 
-    public static WorkflowExecutionResult success() {
+    public static WorkflowExecutionResult success(
+        UUID executionId
+    ) {
         return WorkflowExecutionResult.builder()
+            .executionId(executionId)
             .success(true)
-            .status("COMPLETED")
+            .status("SUCCESS")
             .build();
     }
 
     public static WorkflowExecutionResult failure(
-        String nodeKey,
+        UUID executionId,
+        String failedNode,
         String errorMessage
     ) {
         return WorkflowExecutionResult.builder()
+            .executionId(executionId)
             .success(false)
             .status("FAILED")
-            .failedNode(nodeKey)
+            .failedNode(failedNode)
             .errorMessage(errorMessage)
             .build();
     }

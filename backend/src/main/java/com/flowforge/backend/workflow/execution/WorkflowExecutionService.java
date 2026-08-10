@@ -2,8 +2,12 @@ package com.flowforge.backend.workflow.execution;
 
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
+import com.flowforge.backend.workflow.entity.WorkflowVersion;
+import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;
+import com.flowforge.backend.workflow.execution.entity.WorkflowNodeExecution;
 import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowNodeRepository;
+import com.flowforge.backend.workflow.repository.WorkflowVersionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,11 +23,22 @@ public class WorkflowExecutionService {
     private final WorkflowNodeRepository nodeRepository;
     private final WorkflowEdgeRepository edgeRepository;
     private final List<NodeExecutor> nodeExecutors;
+    private final WorkflowVersionRepository workflowVersionRepository;
+    private final WorkflowExecutionPersistenceService persistenceService;
 
     @Transactional
     public WorkflowExecutionResult execute(
         UUID workflowVersionId
     ) {
+
+        WorkflowVersion version =
+            workflowVersionRepository
+                .findById(workflowVersionId)
+                .orElseThrow(() ->
+                    new IllegalArgumentException(
+                        "Workflow version not found"
+                    )
+                );
 
         List<WorkflowNode> nodes =
             nodeRepository.findAllForExecution(
@@ -35,10 +50,60 @@ public class WorkflowExecutionService {
                 workflowVersionId
             );
 
-        return executeGraph(nodes, edges);
+        WorkflowExecution execution =
+            persistenceService.startExecution(
+                version
+            );
+
+        try {
+
+            WorkflowExecutionResult result =
+                executeGraph(
+                    execution,
+                    nodes,
+                    edges
+                );
+
+            if (result.isSuccess()) {
+
+                persistenceService.completeExecution(
+                    execution,
+                    null
+                );
+
+            } else {
+
+                persistenceService.failExecution(
+                    execution,
+                    result.getErrorMessage()
+                );
+            }
+
+            return result;
+
+        } catch (Exception exception) {
+
+            log.error(
+                "Workflow execution failed | executionId={}",
+                execution.getId(),
+                exception
+            );
+
+            persistenceService.failExecution(
+                execution,
+                exception.getMessage()
+            );
+
+            return WorkflowExecutionResult.failure(
+                execution.getId(),
+                null,
+                exception.getMessage()
+            );
+        }
     }
 
     private WorkflowExecutionResult executeGraph(
+        WorkflowExecution execution,
         List<WorkflowNode> nodes,
         List<WorkflowEdge> edges
     ) {
@@ -58,11 +123,16 @@ public class WorkflowExecutionService {
 
         for (WorkflowNode node : nodes) {
 
-            nodesById.put(node.getId(), node);
+            nodesById.put(
+                node.getId(),
+                node
+            );
+
             adjacency.put(
                 node.getId(),
                 new ArrayList<>()
             );
+
             indegree.put(
                 node.getId(),
                 0
@@ -86,9 +156,16 @@ public class WorkflowExecutionService {
                 );
             }
 
-            adjacency
-                .get(sourceId)
-                .add(targetNode);
+            List<WorkflowNode> outgoing =
+                adjacency.get(sourceId);
+
+            if (outgoing == null) {
+                throw new IllegalStateException(
+                    "Source node not found: " + sourceId
+                );
+            }
+
+            outgoing.add(targetNode);
 
             indegree.put(
                 targetId,
@@ -111,9 +188,23 @@ public class WorkflowExecutionService {
 
             WorkflowNode node = queue.poll();
 
+            WorkflowNodeExecution nodeExecution =
+                persistenceService.startNodeExecution(
+                    execution,
+                    node
+                );
+
             try {
 
-                executeNode(node, context);
+                executeNode(
+                    node,
+                    context
+                );
+
+                persistenceService.completeNodeExecution(
+                    nodeExecution,
+                    null
+                );
 
                 executed++;
 
@@ -125,7 +216,13 @@ public class WorkflowExecutionService {
                     exception
                 );
 
+                persistenceService.failNodeExecution(
+                    nodeExecution,
+                    exception.getMessage()
+                );
+
                 return WorkflowExecutionResult.failure(
+                    execution.getId(),
                     node.getNodeKey(),
                     exception.getMessage()
                 );
@@ -134,7 +231,8 @@ public class WorkflowExecutionService {
             for (WorkflowNode next :
                 adjacency.get(node.getId())) {
 
-                UUID nextId = next.getId();
+                UUID nextId =
+                    next.getId();
 
                 int newIndegree =
                     indegree.get(nextId) - 1;
@@ -153,12 +251,15 @@ public class WorkflowExecutionService {
         if (executed != nodes.size()) {
 
             return WorkflowExecutionResult.failure(
+                execution.getId(),
                 null,
                 "Workflow graph contains a cycle"
             );
         }
 
-        return WorkflowExecutionResult.success();
+        return WorkflowExecutionResult.success(
+            execution.getId()
+        );
     }
 
     private void executeNode(

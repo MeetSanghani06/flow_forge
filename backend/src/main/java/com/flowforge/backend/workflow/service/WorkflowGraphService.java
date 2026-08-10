@@ -8,6 +8,7 @@ import com.flowforge.backend.workflow.dto.WorkflowNodeRequest;
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
 import com.flowforge.backend.workflow.entity.WorkflowVersion;
+import com.flowforge.backend.workflow.execution.repository.WorkflowExecutionRepository;
 import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowNodeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowRepository;
@@ -33,6 +34,7 @@ public class WorkflowGraphService {
     private final WorkspaceContext workspaceContext;
     private final WorkflowGraphValidator graphValidator;
     private final ObjectMapper objectMapper;
+    private final WorkflowExecutionRepository executionRepository;
 
     @Transactional
     public WorkflowGraphResponse saveGraph(
@@ -71,9 +73,18 @@ public class WorkflowGraphService {
                     )
                 );
 
+        // Protection 1: published versions are immutable
         if (version.isPublished()) {
             throw new IllegalStateException(
                 "Published workflow versions cannot be modified"
+            );
+        }
+
+        // Protection 2: executed versions are immutable
+        if (executionRepository.existsByWorkflowVersionId(version.getId())) {
+            throw new IllegalStateException(
+                "Workflow version cannot be modified after execution. "
+                    + "Create a new version instead."
             );
         }
 
@@ -81,10 +92,11 @@ public class WorkflowGraphService {
         validateConnectorIds(request.nodes());
 
         /*
-         * Replace the graph atomically.
+         * Safe because this version has:
+         * - not been published
+         * - never been executed
          *
-         * This is appropriate because an unpublished workflow version
-         * represents the current editable snapshot.
+         * Therefore, it is still an editable draft snapshot.
          */
         edgeRepository.deleteAllByWorkflowVersionId(version.getId());
         nodeRepository.deleteAllByWorkflowVersionId(version.getId());
@@ -102,7 +114,12 @@ public class WorkflowGraphService {
             node.setNodeKey(nodeRequest.nodeKey().trim());
             node.setName(nodeRequest.name().trim());
             node.setType(nodeRequest.type());
-            node.setConfiguration(objectMapper.writeValueAsString(nodeRequest.configuration()));
+
+            node.setConfiguration(
+                objectMapper.writeValueAsString(
+                    nodeRequest.configuration()
+                )
+            );
 
             if (nodeRequest.connectorId() != null &&
                 !nodeRequest.connectorId().isBlank()) {
