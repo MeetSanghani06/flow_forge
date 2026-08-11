@@ -1,20 +1,25 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.workflow.entity.NodeType;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
+import com.flowforge.backend.workflow.execution.dto.NodeExecutionResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class TriggerNodeExecutor implements NodeExecutor {
+public class TriggerNodeExecutor
+    implements NodeExecutor {
 
     @Override
-    public boolean supports(WorkflowNode node) {
-        return "TRIGGER".equals(node.getType().name());
+    public boolean supports(
+        WorkflowNode node
+    ) {
+        return node.getType() == NodeType.TRIGGER;
     }
 
     @Override
-    public void execute(
+    public NodeExecutionResult execute(
         WorkflowNode node,
         WorkflowExecutionContext context
     ) {
@@ -23,5 +28,7 @@ public class TriggerNodeExecutor implements NodeExecutor {
             "TRIGGER_NODE_EXECUTED | key={}",
             node.getNodeKey()
         );
+
+        return NodeExecutionResult.empty();
     }
 }

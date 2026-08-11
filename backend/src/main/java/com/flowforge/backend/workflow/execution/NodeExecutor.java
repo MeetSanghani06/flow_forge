@@ -1,12 +1,13 @@
 package com.flowforge.backend.workflow.execution;
 
 import com.flowforge.backend.workflow.entity.WorkflowNode;
+import com.flowforge.backend.workflow.execution.dto.NodeExecutionResult;
 
 public interface NodeExecutor {
 
     boolean supports(WorkflowNode node);
 
-    void execute(
+    NodeExecutionResult execute(
         WorkflowNode node,
         WorkflowExecutionContext context
     );

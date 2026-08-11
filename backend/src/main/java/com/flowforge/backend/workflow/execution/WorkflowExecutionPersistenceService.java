@@ -10,9 +10,11 @@ import com.flowforge.backend.workflow.execution.repository.WorkflowExecutionRepo
 import com.flowforge.backend.workflow.execution.repository.WorkflowNodeExecutionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +23,7 @@ public class WorkflowExecutionPersistenceService {
     private final WorkflowExecutionRepository executionRepository;
     private final WorkflowNodeExecutionRepository nodeExecutionRepository;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WorkflowExecution startExecution(
         WorkflowVersion workflowVersion
     ) {
@@ -38,11 +40,17 @@ public class WorkflowExecutionPersistenceService {
         return executionRepository.save(execution);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WorkflowNodeExecution startNodeExecution(
-        WorkflowExecution execution,
-        WorkflowNode node
+        UUID executionId,
+        WorkflowNode node,
+        String input
     ) {
+
+        WorkflowExecution execution =
+            executionRepository.getReferenceById(
+                executionId
+            );
 
         WorkflowNodeExecution nodeExecution =
             new WorkflowNodeExecution();
@@ -52,70 +60,117 @@ public class WorkflowExecutionPersistenceService {
         nodeExecution.setStatus(
             WorkflowNodeExecutionStatus.RUNNING
         );
-        nodeExecution.setStartedAt(Instant.now());
+        nodeExecution.setStartedAt(
+            Instant.now()
+        );
+        nodeExecution.setInput(input);
 
         return nodeExecutionRepository.save(
             nodeExecution
         );
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeNodeExecution(
-        WorkflowNodeExecution nodeExecution,
+        UUID nodeExecutionId,
         String output
     ) {
+
+        WorkflowNodeExecution nodeExecution =
+            nodeExecutionRepository
+                .findById(nodeExecutionId)
+                .orElseThrow(() ->
+                    new IllegalStateException(
+                        "Node execution not found: "
+                            + nodeExecutionId
+                    )
+                );
 
         nodeExecution.setStatus(
             WorkflowNodeExecutionStatus.SUCCESS
         );
         nodeExecution.setOutput(output);
-        nodeExecution.setCompletedAt(Instant.now());
-
-        nodeExecutionRepository.save(nodeExecution);
+        nodeExecution.setCompletedAt(
+            Instant.now()
+        );
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failNodeExecution(
-        WorkflowNodeExecution nodeExecution,
+        UUID nodeExecutionId,
         String errorMessage
     ) {
+
+        WorkflowNodeExecution nodeExecution =
+            nodeExecutionRepository
+                .findById(nodeExecutionId)
+                .orElseThrow(() ->
+                    new IllegalStateException(
+                        "Node execution not found: "
+                            + nodeExecutionId
+                    )
+                );
 
         nodeExecution.setStatus(
             WorkflowNodeExecutionStatus.FAILED
         );
-        nodeExecution.setErrorMessage(errorMessage);
-        nodeExecution.setCompletedAt(Instant.now());
-
-        nodeExecutionRepository.save(nodeExecution);
+        nodeExecution.setErrorMessage(
+            errorMessage
+        );
+        nodeExecution.setCompletedAt(
+            Instant.now()
+        );
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeExecution(
-        WorkflowExecution execution,
+        UUID executionId,
         String output
     ) {
+
+        WorkflowExecution execution =
+            executionRepository
+                .findById(executionId)
+                .orElseThrow(() ->
+                    new IllegalStateException(
+                        "Execution not found: "
+                            + executionId
+                    )
+                );
 
         execution.setStatus(
             WorkflowExecutionStatus.SUCCESS
         );
         execution.setOutput(output);
-        execution.setCompletedAt(Instant.now());
-
-        executionRepository.save(execution);
+        execution.setCompletedAt(
+            Instant.now()
+        );
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failExecution(
-        WorkflowExecution execution,
+        UUID executionId,
         String errorMessage
     ) {
+
+        WorkflowExecution execution =
+            executionRepository
+                .findById(executionId)
+                .orElseThrow(() ->
+                    new IllegalStateException(
+                        "Execution not found: "
+                            + executionId
+                    )
+                );
 
         execution.setStatus(
             WorkflowExecutionStatus.FAILED
         );
-        execution.setErrorMessage(errorMessage);
-        execution.setCompletedAt(Instant.now());
-
-        executionRepository.save(execution);
+        execution.setErrorMessage(
+            errorMessage
+        );
+        execution.setCompletedAt(
+            Instant.now()
+        );
     }
 }

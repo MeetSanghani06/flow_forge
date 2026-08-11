@@ -3,6 +3,7 @@ package com.flowforge.backend.workflow.execution;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
+import com.flowforge.backend.workflow.execution.dto.NodeExecutionResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,7 +23,7 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
     }
 
     @Override
-    public void execute(
+    public NodeExecutionResult execute(
         WorkflowNode node,
         WorkflowExecutionContext context
     ) {
@@ -84,7 +85,7 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
                         .body(String.class);
             }
 
-            context.set(
+            context.put(
                 node.getNodeKey() + ".response",
                 response
             );
@@ -93,6 +94,8 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
                 "HTTP_NODE_SUCCESS | key={}",
                 node.getNodeKey()
             );
+
+            return NodeExecutionResult.of(response);
 
         } catch (Exception exception) {
 

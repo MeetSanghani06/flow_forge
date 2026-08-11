@@ -5,6 +5,7 @@ import com.flowforge.backend.workflow.entity.Workflow;
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
 import com.flowforge.backend.workflow.entity.WorkflowVersion;
+import com.flowforge.backend.workflow.execution.dto.NodeExecutionResult;
 import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;
 import com.flowforge.backend.workflow.execution.entity.WorkflowNodeExecution;
 import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 
@@ -31,8 +33,8 @@ public class WorkflowExecutionService {
     private final WorkflowVersionRepository workflowVersionRepository;
     private final WorkflowExecutionPersistenceService persistenceService;
     private final WorkspaceContext workspaceContext;
+    private final ObjectMapper objectMapper;
 
-    @Transactional
     public WorkflowExecutionResult execute(
         UUID workflowVersionId
     ) {
@@ -61,51 +63,29 @@ public class WorkflowExecutionService {
                 version
             );
 
-        try {
-
-            WorkflowExecutionResult result =
-                executeGraph(
-                    execution,
-                    nodes,
-                    edges
-                );
-
-            if (result.isSuccess()) {
-
-                persistenceService.completeExecution(
-                    execution,
-                    null
-                );
-
-            } else {
-
-                persistenceService.failExecution(
-                    execution,
-                    result.getErrorMessage()
-                );
-            }
-
-            return result;
-
-        } catch (Exception exception) {
-
-            log.error(
-                "Workflow execution failed | executionId={}",
+        WorkflowExecutionResult result =
+            executeGraph(
                 execution.getId(),
-                exception
+                nodes,
+                edges
             );
+
+        if (result.isSuccess()) {
+
+            persistenceService.completeExecution(
+                execution.getId(),
+                null
+            );
+
+        } else {
 
             persistenceService.failExecution(
-                execution,
-                exception.getMessage()
-            );
-
-            return WorkflowExecutionResult.failure(
                 execution.getId(),
-                null,
-                exception.getMessage()
+                result.getErrorMessage()
             );
         }
+
+        return result;
     }
 
     @Transactional
@@ -147,14 +127,13 @@ public class WorkflowExecutionService {
     }
 
     private WorkflowExecutionResult executeGraph(
-        WorkflowExecution execution,
+        UUID executionId,
         List<WorkflowNode> nodes,
         List<WorkflowEdge> edges
     ) {
 
         WorkflowExecutionContext context =
-            WorkflowExecutionContext.builder()
-                .build();
+            new WorkflowExecutionContext();
 
         Map<UUID, WorkflowNode> nodesById =
             new HashMap<>();
@@ -232,22 +211,39 @@ public class WorkflowExecutionService {
 
             WorkflowNode node = queue.poll();
 
+            String input =
+                objectMapper.writeValueAsString(
+                    context.snapshot()
+                );
+
             WorkflowNodeExecution nodeExecution =
                 persistenceService.startNodeExecution(
-                    execution,
-                    node
+                    executionId,
+                    node,
+                    input
                 );
 
             try {
 
-                executeNode(
-                    node,
-                    context
-                );
+                NodeExecutor executor =
+                    findExecutor(node);
+
+                NodeExecutionResult result =
+                    executor.execute(
+                        node,
+                        context
+                    );
+
+                if (result.output() != null) {
+                    context.put(
+                        node.getNodeKey(),
+                        result.output()
+                    );
+                }
 
                 persistenceService.completeNodeExecution(
-                    nodeExecution,
-                    null
+                    nodeExecution.getId(),
+                    result.output()
                 );
 
                 executed++;
@@ -261,19 +257,21 @@ public class WorkflowExecutionService {
                 );
 
                 persistenceService.failNodeExecution(
-                    nodeExecution,
+                    nodeExecution.getId(),
                     exception.getMessage()
                 );
 
                 return WorkflowExecutionResult.failure(
-                    execution.getId(),
+                    executionId,
                     node.getNodeKey(),
                     exception.getMessage()
                 );
             }
 
-            for (WorkflowNode next :
-                adjacency.get(node.getId())) {
+            for (
+                WorkflowNode next :
+                adjacency.get(node.getId())
+            ) {
 
                 UUID nextId =
                     next.getId();
@@ -295,15 +293,32 @@ public class WorkflowExecutionService {
         if (executed != nodes.size()) {
 
             return WorkflowExecutionResult.failure(
-                execution.getId(),
+                executionId,
                 null,
                 "Workflow graph contains a cycle"
             );
         }
 
         return WorkflowExecutionResult.success(
-            execution.getId()
+            executionId
         );
+    }
+
+    private NodeExecutor findExecutor(
+        WorkflowNode node
+    ) {
+
+        return nodeExecutors.stream()
+            .filter(executor ->
+                executor.supports(node)
+            )
+            .findFirst()
+            .orElseThrow(() ->
+                new IllegalStateException(
+                    "No executor found for node type: "
+                        + node.getType()
+                )
+            );
     }
 
     private void executeNode(
