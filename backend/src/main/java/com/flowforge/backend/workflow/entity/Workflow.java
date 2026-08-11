@@ -24,6 +24,12 @@ public class Workflow extends BaseEntity {
     @JoinColumn(name = "workspace_id", nullable = false)
     private Workspace workspace;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+        name = "active_version_id"
+    )
+    private WorkflowVersion activeVersion;
+
     @Column(nullable = false, length = 150)
     private String name;
 

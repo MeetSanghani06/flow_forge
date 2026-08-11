@@ -2,9 +2,7 @@ package com.flowforge.backend.workflow.service;
 
 import com.flowforge.backend.common.exception.ResourceNotFoundException;
 import com.flowforge.backend.workflow.dto.WorkflowVersionResponse;
-import com.flowforge.backend.workflow.entity.WorkflowEdge;
-import com.flowforge.backend.workflow.entity.WorkflowNode;
-import com.flowforge.backend.workflow.entity.WorkflowVersion;
+import com.flowforge.backend.workflow.entity.*;
 import com.flowforge.backend.workflow.mapper.WorkflowVersionMapper;
 import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowNodeRepository;
@@ -295,16 +293,17 @@ public class WorkflowVersionService {
             userId
         );
 
-        workflowRepository
-            .findByIdAndWorkspaceId(
-                workflowId,
-                workspaceId
-            )
-            .orElseThrow(() ->
-                new ResourceNotFoundException(
-                    "Workflow not found"
+        Workflow workflow =
+            workflowRepository
+                .findByIdAndWorkspaceId(
+                    workflowId,
+                    workspaceId
                 )
-            );
+                .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                        "Workflow not found"
+                    )
+                );
 
         WorkflowVersion version =
             versionRepository
@@ -341,11 +340,14 @@ public class WorkflowVersionService {
 
         version.setPublished(true);
 
-        WorkflowVersion saved =
-            versionRepository.save(version);
+        workflow.setActiveVersion(version);
+        workflow.setStatus(WorkflowStatus.PUBLISHED);
+
+        versionRepository.save(version);
+        workflowRepository.save(workflow);
 
         return workflowVersionMapper.toResponse(
-            saved
+            version
         );
     }
 }

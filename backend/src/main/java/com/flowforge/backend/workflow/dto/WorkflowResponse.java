@@ -17,6 +17,8 @@ public record WorkflowResponse(
 
     WorkflowStatus status,
 
+    UUID activeVersionId,
+
     Instant createdAt,
 
     Instant updatedAt

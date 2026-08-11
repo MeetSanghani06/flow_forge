@@ -1,5 +1,7 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.common.exception.ResourceNotFoundException;
+import com.flowforge.backend.workflow.entity.Workflow;
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
 import com.flowforge.backend.workflow.entity.WorkflowVersion;
@@ -7,7 +9,9 @@ import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;
 import com.flowforge.backend.workflow.execution.entity.WorkflowNodeExecution;
 import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
 import com.flowforge.backend.workflow.repository.WorkflowNodeRepository;
+import com.flowforge.backend.workflow.repository.WorkflowRepository;
 import com.flowforge.backend.workflow.repository.WorkflowVersionRepository;
+import com.flowforge.backend.workspace.service.WorkspaceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,8 +27,10 @@ public class WorkflowExecutionService {
     private final WorkflowNodeRepository nodeRepository;
     private final WorkflowEdgeRepository edgeRepository;
     private final List<NodeExecutor> nodeExecutors;
+    private final WorkflowRepository  workflowRepository;
     private final WorkflowVersionRepository workflowVersionRepository;
     private final WorkflowExecutionPersistenceService persistenceService;
+    private final WorkspaceContext workspaceContext;
 
     @Transactional
     public WorkflowExecutionResult execute(
@@ -100,6 +106,44 @@ public class WorkflowExecutionService {
                 exception.getMessage()
             );
         }
+    }
+
+    @Transactional
+    public WorkflowExecutionResult executeWorkflow(
+        UUID workspaceId,
+        UUID workflowId,
+        UUID userId
+    ) {
+
+        workspaceContext.requireMembership(
+            workspaceId,
+            userId
+        );
+
+        Workflow workflow =
+            workflowRepository
+                .findByIdAndWorkspaceId(
+                    workflowId,
+                    workspaceId
+                )
+                .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                        "Workflow not found"
+                    )
+                );
+
+        WorkflowVersion activeVersion =
+            workflow.getActiveVersion();
+
+        if (activeVersion == null) {
+            throw new IllegalStateException(
+                "Workflow has no published version"
+            );
+        }
+
+        return execute(
+            activeVersion.getId()
+        );
     }
 
     private WorkflowExecutionResult executeGraph(

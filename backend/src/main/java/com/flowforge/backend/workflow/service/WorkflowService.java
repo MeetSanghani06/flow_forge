@@ -5,6 +5,7 @@ import com.flowforge.backend.common.exception.ResourceNotFoundException;
 import com.flowforge.backend.workflow.dto.CreateWorkflowRequest;
 import com.flowforge.backend.workflow.dto.WorkflowResponse;
 import com.flowforge.backend.workflow.entity.Workflow;
+import com.flowforge.backend.workflow.mapper.WorkflowMapper;
 import com.flowforge.backend.workflow.repository.WorkflowRepository;
 import com.flowforge.backend.workspace.entity.Workspace;
 import com.flowforge.backend.workspace.service.WorkspaceContext;
@@ -21,6 +22,7 @@ public class WorkflowService {
 
     private final WorkflowRepository workflowRepository;
     private final WorkspaceContext workspaceContext;
+    private final WorkflowMapper workflowMapper;
 
     @Transactional
     public WorkflowResponse create(
@@ -56,7 +58,7 @@ public class WorkflowService {
             com.flowforge.backend.workflow.entity.WorkflowStatus.DRAFT
         );
 
-        return toResponse(
+        return workflowMapper.toResponse(
             workflowRepository.save(workflow)
         );
     }
@@ -72,11 +74,7 @@ public class WorkflowService {
             userId
         );
 
-        return workflowRepository
-            .findAllByWorkspaceId(workspaceId)
-            .stream()
-            .map(this::toResponse)
-            .toList();
+        return workflowMapper.toResponseList(workflowRepository.findAllByWorkspaceId(workspaceId));
     }
 
     @Transactional(readOnly = true)
@@ -103,21 +101,6 @@ public class WorkflowService {
                     )
                 );
 
-        return toResponse(workflow);
-    }
-
-    private WorkflowResponse toResponse(
-        Workflow workflow
-    ) {
-
-        return new WorkflowResponse(
-            workflow.getId(),
-            workflow.getWorkspace().getId(),
-            workflow.getName(),
-            workflow.getDescription(),
-            workflow.getStatus(),
-            workflow.getCreatedAt(),
-            workflow.getUpdatedAt()
-        );
+        return workflowMapper.toResponse(workflow);
     }
 }
