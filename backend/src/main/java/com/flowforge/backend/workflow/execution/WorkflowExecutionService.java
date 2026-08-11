@@ -271,14 +271,6 @@ public class WorkflowExecutionService {
                         context
                     );
 
-                if (result.output() != null) {
-
-                    context.putNodeOutput(
-                        node.getNodeKey(),
-                        result.output()
-                    );
-                }
-
                 persistenceService.completeNodeExecution(
                     nodeExecution.getId(),
                     result.output()

@@ -12,14 +12,21 @@ import org.springframework.web.client.RestClient;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class HttpRequestNodeExecutor implements NodeExecutor {
+public class HttpRequestNodeExecutor
+    implements NodeExecutor {
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
+    private final ExpressionResolver expressionResolver;
 
     @Override
-    public boolean supports(WorkflowNode node) {
-        return "HTTP_REQUEST".equals(node.getType().name());
+    public boolean supports(
+        WorkflowNode node
+    ) {
+
+        return "HTTP_REQUEST".equals(
+            node.getType().name()
+        );
     }
 
     @Override
@@ -41,11 +48,15 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
                     .asText("GET");
 
             String url =
-                configuration
-                    .path("url")
-                    .asText();
+                expressionResolver.resolve(
+                    configuration
+                        .path("url")
+                        .asText(),
+                    context
+                );
 
             if (url.isBlank()) {
+
                 throw new IllegalArgumentException(
                     "HTTP request node requires a URL"
                 );
@@ -63,13 +74,17 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
             if ("POST".equalsIgnoreCase(method)) {
 
                 JsonNode body =
-                    configuration.path("body");
+                    expressionResolver.resolveJson(
+                        configuration.path("body"),
+                        context
+                    );
 
                 response =
                     restClient.post()
                         .uri(url)
                         .body(
-                            body.isMissingNode()
+                            body == null ||
+                                body.isMissingNode()
                                 ? "{}"
                                 : body.toString()
                         )
@@ -85,9 +100,19 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
                         .body(String.class);
             }
 
+            /*
+             * Store the response as JSON when possible.
+             *
+             * This allows downstream nodes to use:
+             *
+             * {{ nodes.fetch_data.id }}
+             */
+            JsonNode responseNode =
+                objectMapper.readTree(response);
+
             context.putNodeOutput(
-                node.getNodeKey() + ".response",
-                response
+                node.getNodeKey(),
+                responseNode
             );
 
             log.info(
@@ -95,7 +120,9 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
                 node.getNodeKey()
             );
 
-            return NodeExecutionResult.of(response);
+            return NodeExecutionResult.of(
+                response
+            );
 
         } catch (Exception exception) {
 

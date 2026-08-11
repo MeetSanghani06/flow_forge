@@ -1,5 +1,6 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Getter;
 
 import java.util.Collections;
@@ -25,6 +26,7 @@ public class WorkflowExecutionContext {
     public void putInputAll(
         Map<String, Object> values
     ) {
+
         if (values != null) {
             input.putAll(values);
         }
@@ -32,20 +34,37 @@ public class WorkflowExecutionContext {
 
     public void putNodeOutput(
         String nodeKey,
-        Object output
+        JsonNode output
     ) {
+
         nodeOutputs.put(
             nodeKey,
             output
         );
     }
 
-    public Object getInput(String key) {
+    public Object getInput(
+        String key
+    ) {
         return input.get(key);
     }
 
-    public Object getNodeOutput(String nodeKey) {
+    public Object getNodeOutput(
+        String nodeKey
+    ) {
         return nodeOutputs.get(nodeKey);
+    }
+
+    public Map<String, Object> getInput() {
+        return Collections.unmodifiableMap(
+            input
+        );
+    }
+
+    public Map<String, Object> getNodeOutputs() {
+        return Collections.unmodifiableMap(
+            nodeOutputs
+        );
     }
 
     public Map<String, Object> snapshot() {
