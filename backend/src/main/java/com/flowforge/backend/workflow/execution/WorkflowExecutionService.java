@@ -6,6 +6,7 @@ import com.flowforge.backend.workflow.entity.WorkflowEdge;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
 import com.flowforge.backend.workflow.entity.WorkflowVersion;
 import com.flowforge.backend.workflow.execution.dto.NodeExecutionResult;
+import com.flowforge.backend.workflow.execution.dto.WorkflowExecutionRequest;
 import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;
 import com.flowforge.backend.workflow.execution.entity.WorkflowNodeExecution;
 import com.flowforge.backend.workflow.repository.WorkflowEdgeRepository;
@@ -16,10 +17,15 @@ import com.flowforge.backend.workspace.service.WorkspaceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,14 +35,15 @@ public class WorkflowExecutionService {
     private final WorkflowNodeRepository nodeRepository;
     private final WorkflowEdgeRepository edgeRepository;
     private final List<NodeExecutor> nodeExecutors;
-    private final WorkflowRepository  workflowRepository;
+    private final WorkflowRepository workflowRepository;
     private final WorkflowVersionRepository workflowVersionRepository;
     private final WorkflowExecutionPersistenceService persistenceService;
     private final WorkspaceContext workspaceContext;
     private final ObjectMapper objectMapper;
 
     public WorkflowExecutionResult execute(
-        UUID workflowVersionId
+        UUID workflowVersionId,
+        WorkflowExecutionRequest request
     ) {
 
         WorkflowVersion version =
@@ -60,14 +67,16 @@ public class WorkflowExecutionService {
 
         WorkflowExecution execution =
             persistenceService.startExecution(
-                version
+                version,
+                request.input()
             );
 
         WorkflowExecutionResult result =
             executeGraph(
                 execution.getId(),
                 nodes,
-                edges
+                edges,
+                request.input()
             );
 
         if (result.isSuccess()) {
@@ -88,11 +97,11 @@ public class WorkflowExecutionService {
         return result;
     }
 
-    @Transactional
     public WorkflowExecutionResult executeWorkflow(
         UUID workspaceId,
         UUID workflowId,
-        UUID userId
+        UUID userId,
+        WorkflowExecutionRequest request
     ) {
 
         workspaceContext.requireMembership(
@@ -122,18 +131,26 @@ public class WorkflowExecutionService {
         }
 
         return execute(
-            activeVersion.getId()
+            activeVersion.getId(),
+            request
         );
     }
 
     private WorkflowExecutionResult executeGraph(
         UUID executionId,
         List<WorkflowNode> nodes,
-        List<WorkflowEdge> edges
+        List<WorkflowEdge> edges,
+        Map<String, Object> input
     ) {
 
         WorkflowExecutionContext context =
             new WorkflowExecutionContext();
+
+        context.putInputAll(
+            input == null
+                ? Map.of()
+                : input
+        );
 
         Map<UUID, WorkflowNode> nodesById =
             new HashMap<>();
@@ -209,18 +226,38 @@ public class WorkflowExecutionService {
 
         while (!queue.isEmpty()) {
 
-            WorkflowNode node = queue.poll();
+            WorkflowNode node =
+                queue.poll();
 
-            String input =
-                objectMapper.writeValueAsString(
-                    context.snapshot()
+            String nodeInput;
+
+            try {
+
+                nodeInput =
+                    objectMapper.writeValueAsString(
+                        context.snapshot()
+                    );
+
+            } catch (Exception exception) {
+
+                log.error(
+                    "Failed to serialize execution context for node {}",
+                    node.getNodeKey(),
+                    exception
                 );
+
+                return WorkflowExecutionResult.failure(
+                    executionId,
+                    node.getNodeKey(),
+                    "Failed to serialize execution context"
+                );
+            }
 
             WorkflowNodeExecution nodeExecution =
                 persistenceService.startNodeExecution(
                     executionId,
                     node,
-                    input
+                    nodeInput
                 );
 
             try {
@@ -235,7 +272,8 @@ public class WorkflowExecutionService {
                     );
 
                 if (result.output() != null) {
-                    context.put(
+
+                    context.putNodeOutput(
                         node.getNodeKey(),
                         result.output()
                     );
@@ -268,10 +306,8 @@ public class WorkflowExecutionService {
                 );
             }
 
-            for (
-                WorkflowNode next :
-                adjacency.get(node.getId())
-            ) {
+            for (WorkflowNode next :
+                adjacency.get(node.getId())) {
 
                 UUID nextId =
                     next.getId();
@@ -319,26 +355,5 @@ public class WorkflowExecutionService {
                         + node.getType()
                 )
             );
-    }
-
-    private void executeNode(
-        WorkflowNode node,
-        WorkflowExecutionContext context
-    ) {
-
-        NodeExecutor executor =
-            nodeExecutors.stream()
-                .filter(candidate ->
-                    candidate.supports(node)
-                )
-                .findFirst()
-                .orElseThrow(() ->
-                    new IllegalStateException(
-                        "No executor found for node type: "
-                            + node.getType()
-                    )
-                );
-
-        executor.execute(node, context);
     }
 }

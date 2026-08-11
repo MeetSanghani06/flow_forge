@@ -1,5 +1,6 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
 import com.flowforge.backend.workflow.entity.WorkflowVersion;
 import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;
@@ -12,8 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -22,22 +25,50 @@ public class WorkflowExecutionPersistenceService {
 
     private final WorkflowExecutionRepository executionRepository;
     private final WorkflowNodeExecutionRepository nodeExecutionRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WorkflowExecution startExecution(
-        WorkflowVersion workflowVersion
+        WorkflowVersion workflowVersion,
+        Map<String, Object> input
     ) {
 
         WorkflowExecution execution =
             new WorkflowExecution();
 
-        execution.setWorkflowVersion(workflowVersion);
+        execution.setWorkflowVersion(
+            workflowVersion
+        );
+
         execution.setStatus(
             WorkflowExecutionStatus.RUNNING
         );
-        execution.setStartedAt(Instant.now());
 
-        return executionRepository.save(execution);
+        execution.setStartedAt(
+            Instant.now()
+        );
+
+        try {
+
+            execution.setInput(
+                objectMapper.writeValueAsString(
+                    input == null
+                        ? Map.of()
+                        : input
+                )
+            );
+
+        } catch (Exception exception) {
+
+            throw new IllegalArgumentException(
+                "Unable to serialize workflow input",
+                exception
+            );
+        }
+
+        return executionRepository.save(
+            execution
+        );
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

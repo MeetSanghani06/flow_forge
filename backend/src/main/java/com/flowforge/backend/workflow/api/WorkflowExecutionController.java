@@ -2,13 +2,10 @@ package com.flowforge.backend.workflow.api;
 
 import com.flowforge.backend.workflow.execution.WorkflowExecutionResult;
 import com.flowforge.backend.workflow.execution.WorkflowExecutionService;
-import com.flowforge.backend.workspace.service.WorkspaceContext;
+import com.flowforge.backend.workflow.execution.dto.WorkflowExecutionRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -21,9 +18,22 @@ public class WorkflowExecutionController {
 
     @PostMapping("/workflows/{workflowVersionId}/execute")
     public WorkflowExecutionResult execute(
-        @PathVariable UUID workflowVersionId
+        @PathVariable UUID workflowVersionId,
+        @RequestBody(
+            required = false
+        )
+        WorkflowExecutionRequest request
     ) {
-        return executionService.execute(workflowVersionId);
+
+        if (request == null) {
+            request =
+                WorkflowExecutionRequest.empty();
+        }
+
+        return executionService.execute(
+            workflowVersionId,
+            request
+        );
     }
 
     @PostMapping(
@@ -32,15 +42,28 @@ public class WorkflowExecutionController {
     public WorkflowExecutionResult executeWorkflow(
         @PathVariable UUID workspaceId,
         @PathVariable UUID workflowId,
+        @RequestBody(
+            required = false
+        )
+        WorkflowExecutionRequest request,
         Authentication authentication
     ) {
+
         UUID userId =
-            UUID.fromString(authentication.getName());
+            UUID.fromString(
+                authentication.getName()
+            );
+
+        if (request == null) {
+            request =
+                WorkflowExecutionRequest.empty();
+        }
 
         return executionService.executeWorkflow(
             workspaceId,
             workflowId,
-            userId
+            userId,
+            request
         );
     }
 }

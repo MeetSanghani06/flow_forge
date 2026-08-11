@@ -85,7 +85,7 @@ public class HttpRequestNodeExecutor implements NodeExecutor {
                         .body(String.class);
             }
 
-            context.put(
+            context.putNodeOutput(
                 node.getNodeKey() + ".response",
                 response
             );

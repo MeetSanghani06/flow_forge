@@ -9,40 +9,62 @@ import java.util.Map;
 @Getter
 public class WorkflowExecutionContext {
 
-    private final Map<String, Object> variables =
+    private final Map<String, Object> input =
         new HashMap<>();
 
-    public void put(
+    private final Map<String, Object> nodeOutputs =
+        new HashMap<>();
+
+    public void putInput(
         String key,
         Object value
     ) {
-        variables.put(key, value);
+        input.put(key, value);
     }
 
-    public Object get(String key) {
-        return variables.get(key);
-    }
-
-    public <T> T get(
-        String key,
-        Class<T> type
+    public void putInputAll(
+        Map<String, Object> values
     ) {
-        Object value = variables.get(key);
-
-        if (value == null) {
-            return null;
+        if (values != null) {
+            input.putAll(values);
         }
-
-        return type.cast(value);
     }
 
-    public boolean contains(String key) {
-        return variables.containsKey(key);
+    public void putNodeOutput(
+        String nodeKey,
+        Object output
+    ) {
+        nodeOutputs.put(
+            nodeKey,
+            output
+        );
+    }
+
+    public Object getInput(String key) {
+        return input.get(key);
+    }
+
+    public Object getNodeOutput(String nodeKey) {
+        return nodeOutputs.get(nodeKey);
     }
 
     public Map<String, Object> snapshot() {
+
+        Map<String, Object> snapshot =
+            new HashMap<>();
+
+        snapshot.put(
+            "input",
+            new HashMap<>(input)
+        );
+
+        snapshot.put(
+            "nodes",
+            new HashMap<>(nodeOutputs)
+        );
+
         return Collections.unmodifiableMap(
-            new HashMap<>(variables)
+            snapshot
         );
     }
 }
