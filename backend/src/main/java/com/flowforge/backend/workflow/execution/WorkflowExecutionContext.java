@@ -1,35 +1,51 @@
 package com.flowforge.backend.workflow.execution;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 @Getter
+@RequiredArgsConstructor
 public class WorkflowExecutionContext {
 
-    private final Map<String, Object> input =
+    private final ObjectMapper objectMapper;
+
+    private final Map<String, JsonNode> input =
         new HashMap<>();
 
-    private final Map<String, Object> nodeOutputs =
+    private final Map<String, JsonNode> nodeOutputs =
         new HashMap<>();
 
     public void putInput(
         String key,
         Object value
     ) {
-        input.put(key, value);
+        input.put(
+            key,
+            objectMapper.valueToTree(value)
+        );
     }
 
     public void putInputAll(
         Map<String, Object> values
     ) {
 
-        if (values != null) {
-            input.putAll(values);
+        if (values == null) {
+            return;
         }
+
+        values.forEach(
+            (key, value) ->
+                input.put(
+                    key,
+                    objectMapper.valueToTree(value)
+                )
+        );
     }
 
     public void putNodeOutput(
@@ -43,28 +59,24 @@ public class WorkflowExecutionContext {
         );
     }
 
-    public Object getInput(
+    public JsonNode getInput(
         String key
     ) {
         return input.get(key);
     }
 
-    public Object getNodeOutput(
+    public JsonNode getNodeOutput(
         String nodeKey
     ) {
         return nodeOutputs.get(nodeKey);
     }
 
-    public Map<String, Object> getInput() {
-        return Collections.unmodifiableMap(
-            input
-        );
+    public Map<String, JsonNode> getInput() {
+        return Collections.unmodifiableMap(input);
     }
 
-    public Map<String, Object> getNodeOutputs() {
-        return Collections.unmodifiableMap(
-            nodeOutputs
-        );
+    public Map<String, JsonNode> getNodeOutputs() {
+        return Collections.unmodifiableMap(nodeOutputs);
     }
 
     public Map<String, Object> snapshot() {

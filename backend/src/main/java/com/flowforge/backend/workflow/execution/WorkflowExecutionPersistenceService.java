@@ -204,4 +204,45 @@ public class WorkflowExecutionPersistenceService {
             Instant.now()
         );
     }
+
+    @Transactional
+    public WorkflowNodeExecution skipNodeExecution(
+        UUID executionId,
+        WorkflowNode node,
+        String input
+    ) {
+        WorkflowExecution execution =
+            executionRepository.getReferenceById(
+                executionId
+            );
+
+        WorkflowNodeExecution nodeExecution =
+            new WorkflowNodeExecution();
+
+        nodeExecution.setWorkflowExecution(execution);
+
+        nodeExecution.setWorkflowNode(
+            node
+        );
+
+        nodeExecution.setStatus(
+            WorkflowNodeExecutionStatus.SKIPPED
+        );
+
+        nodeExecution.setStartedAt(
+            Instant.now()
+        );
+
+        nodeExecution.setCompletedAt(
+            Instant.now()
+        );
+
+        nodeExecution.setInput(
+            input
+        );
+
+        return nodeExecutionRepository.save(
+            nodeExecution
+        );
+    }
 }

@@ -277,7 +277,7 @@ public class ExpressionResolver {
      * with JSON values.
      */
     private JsonNode resolvePath(
-        Map<String, Object> source,
+        Map<String, JsonNode> source,
         String[] parts,
         int startIndex,
         String expression

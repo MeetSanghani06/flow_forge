@@ -4,5 +4,6 @@ public enum WorkflowNodeExecutionStatus {
 
     RUNNING,
     SUCCESS,
-    FAILED
+    FAILED,
+    SKIPPED
 }

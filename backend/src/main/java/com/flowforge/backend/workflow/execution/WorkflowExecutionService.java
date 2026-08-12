@@ -1,5 +1,7 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowforge.backend.common.exception.ResourceNotFoundException;
 import com.flowforge.backend.workflow.entity.Workflow;
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
@@ -17,7 +19,6 @@ import com.flowforge.backend.workspace.service.WorkspaceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public class WorkflowExecutionService {
     private final WorkflowExecutionPersistenceService persistenceService;
     private final WorkspaceContext workspaceContext;
     private final ObjectMapper objectMapper;
+    private final ConditionEvaluator conditionEvaluator;
 
     public WorkflowExecutionResult execute(
         UUID workflowVersionId,
@@ -144,7 +146,9 @@ public class WorkflowExecutionService {
     ) {
 
         WorkflowExecutionContext context =
-            new WorkflowExecutionContext();
+            new WorkflowExecutionContext(
+                objectMapper
+            );
 
         context.putInputAll(
             input == null
@@ -155,30 +159,59 @@ public class WorkflowExecutionService {
         Map<UUID, WorkflowNode> nodesById =
             new HashMap<>();
 
-        Map<UUID, List<WorkflowNode>> adjacency =
+        /*
+         * IMPORTANT:
+         *
+         * We store WorkflowEdge here rather than
+         * WorkflowNode because the condition belongs
+         * to the edge.
+         */
+        Map<UUID, List<WorkflowEdge>> adjacency =
             new HashMap<>();
 
-        Map<UUID, Integer> indegree =
+        /*
+         * Number of incoming edges that are still
+         * unresolved.
+         */
+        Map<UUID, Integer> remainingIncoming =
+            new HashMap<>();
+
+        /*
+         * Whether at least one incoming edge actually
+         * selected this node for execution.
+         */
+        Map<UUID, Boolean> activated =
             new HashMap<>();
 
         for (WorkflowNode node : nodes) {
 
+            UUID nodeId =
+                node.getId();
+
             nodesById.put(
-                node.getId(),
+                nodeId,
                 node
             );
 
             adjacency.put(
-                node.getId(),
+                nodeId,
                 new ArrayList<>()
             );
 
-            indegree.put(
-                node.getId(),
+            remainingIncoming.put(
+                nodeId,
                 0
+            );
+
+            activated.put(
+                nodeId,
+                false
             );
         }
 
+        /*
+         * Build graph.
+         */
         for (WorkflowEdge edge : edges) {
 
             UUID sourceId =
@@ -187,47 +220,67 @@ public class WorkflowExecutionService {
             UUID targetId =
                 edge.getTargetNode().getId();
 
-            WorkflowNode targetNode =
-                nodesById.get(targetId);
+            if (!nodesById.containsKey(sourceId)) {
 
-            if (targetNode == null) {
                 throw new IllegalStateException(
-                    "Target node not found: " + targetId
+                    "Source node not found: "
+                        + sourceId
                 );
             }
 
-            List<WorkflowNode> outgoing =
-                adjacency.get(sourceId);
+            if (!nodesById.containsKey(targetId)) {
 
-            if (outgoing == null) {
                 throw new IllegalStateException(
-                    "Source node not found: " + sourceId
+                    "Target node not found: "
+                        + targetId
                 );
             }
 
-            outgoing.add(targetNode);
+            adjacency
+                .get(sourceId)
+                .add(edge);
 
-            indegree.put(
+            remainingIncoming.put(
                 targetId,
-                indegree.get(targetId) + 1
+                remainingIncoming.get(targetId) + 1
             );
         }
 
+        /*
+         * Root nodes have no incoming edges and therefore
+         * are automatically activated.
+         */
         Queue<WorkflowNode> queue =
             new ArrayDeque<>();
 
         nodes.stream()
             .filter(node ->
-                indegree.get(node.getId()) == 0
+                remainingIncoming.get(
+                    node.getId()
+                ) == 0
             )
-            .forEach(queue::add);
+            .forEach(node -> {
 
-        int executed = 0;
+                activated.put(
+                    node.getId(),
+                    true
+                );
+
+                queue.add(node);
+            });
+
+        int resolvedNodes = 0;
 
         while (!queue.isEmpty()) {
 
             WorkflowNode node =
                 queue.poll();
+
+            UUID nodeId =
+                node.getId();
+
+            boolean shouldExecute =
+                activated.get(nodeId);
 
             String nodeInput;
 
@@ -240,17 +293,39 @@ public class WorkflowExecutionService {
 
             } catch (Exception exception) {
 
-                log.error(
-                    "Failed to serialize execution context for node {}",
-                    node.getNodeKey(),
+                throw new IllegalStateException(
+                    "Failed to serialize node input",
                     exception
                 );
+            }
 
-                return WorkflowExecutionResult.failure(
+            /*
+             * Node has no active incoming path.
+             *
+             * Persist SKIPPED instead of pretending
+             * that the node was never evaluated.
+             */
+            if (!shouldExecute) {
+
+                persistenceService.skipNodeExecution(
                     executionId,
-                    node.getNodeKey(),
-                    "Failed to serialize execution context"
+                    node,
+                    nodeInput
                 );
+
+                resolvedNodes++;
+
+                propagateNodeResult(
+                    node,
+                    false,
+                    context,
+                    adjacency,
+                    remainingIncoming,
+                    activated,
+                    queue
+                );
+
+                continue;
             }
 
             WorkflowNodeExecution nodeExecution =
@@ -271,12 +346,30 @@ public class WorkflowExecutionService {
                         context
                     );
 
+                if (result.output() != null) {
+
+                    context.putNodeOutput(
+                        node.getNodeKey(),
+                        objectMapper.readTree(result.output())
+                    );
+                }
+
                 persistenceService.completeNodeExecution(
                     nodeExecution.getId(),
                     result.output()
                 );
 
-                executed++;
+                resolvedNodes++;
+
+                propagateNodeResult(
+                    node,
+                    true,
+                    context,
+                    adjacency,
+                    remainingIncoming,
+                    activated,
+                    queue
+                );
 
             } catch (Exception exception) {
 
@@ -297,39 +390,88 @@ public class WorkflowExecutionService {
                     exception.getMessage()
                 );
             }
-
-            for (WorkflowNode next :
-                adjacency.get(node.getId())) {
-
-                UUID nextId =
-                    next.getId();
-
-                int newIndegree =
-                    indegree.get(nextId) - 1;
-
-                indegree.put(
-                    nextId,
-                    newIndegree
-                );
-
-                if (newIndegree == 0) {
-                    queue.add(next);
-                }
-            }
         }
 
-        if (executed != nodes.size()) {
+        /*
+         * If some nodes were never resolved, the graph
+         * contains a cycle or otherwise invalid topology.
+         */
+        if (resolvedNodes != nodes.size()) {
 
             return WorkflowExecutionResult.failure(
                 executionId,
                 null,
-                "Workflow graph contains a cycle"
+                "Workflow graph contains a cycle or unresolved dependency"
             );
         }
 
         return WorkflowExecutionResult.success(
             executionId
         );
+    }
+
+    private void propagateNodeResult(
+        WorkflowNode node,
+        boolean nodeExecuted,
+        WorkflowExecutionContext context,
+        Map<UUID, List<WorkflowEdge>> adjacency,
+        Map<UUID, Integer> remainingIncoming,
+        Map<UUID, Boolean> activated,
+        Queue<WorkflowNode> queue
+    ) {
+
+        for (
+            WorkflowEdge edge :
+            adjacency.get(node.getId())
+        ) {
+
+            UUID targetId =
+                edge.getTargetNode().getId();
+
+            boolean edgeSelected =
+                false;
+
+            /*
+             * A skipped source cannot activate
+             * downstream nodes.
+             */
+            if (nodeExecuted) {
+
+                edgeSelected =
+                    conditionEvaluator.evaluate(
+                        edge.getCondition(),
+                        context
+                    );
+            }
+
+            if (edgeSelected) {
+
+                activated.put(
+                    targetId,
+                    true
+                );
+            }
+
+            int remaining =
+                remainingIncoming.get(targetId) - 1;
+
+            remainingIncoming.put(
+                targetId,
+                remaining
+            );
+
+            /*
+             * Only after ALL incoming edges have been
+             * resolved do we decide whether the node
+             * executes or gets skipped.
+             */
+            if (remaining == 0) {
+
+                queue.add(
+                    edge.getTargetNode()
+                );
+            }
+        }
     }
 
     private NodeExecutor findExecutor(
