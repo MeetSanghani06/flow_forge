@@ -32,13 +32,9 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
   ai:
-
     openai:
-
       api-key: ${OPENAI_API_KEY:}
-
       chat:
-
         options:
           model: ${OPENAI_MODEL:gpt-4.1-mini}
 
