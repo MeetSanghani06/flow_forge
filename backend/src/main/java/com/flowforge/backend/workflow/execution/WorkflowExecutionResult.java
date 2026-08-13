@@ -1,5 +1,6 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.workflow.execution.entity.WorkflowExecutionStatus;
 import tools.jackson.databind.JsonNode;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,7 +30,7 @@ public class WorkflowExecutionResult {
         return WorkflowExecutionResult.builder()
             .executionId(executionId)
             .success(true)
-            .status("SUCCESS")
+            .status(WorkflowExecutionStatus.SUCCESS.name())
             .output(output)
             .build();
     }
@@ -42,9 +43,17 @@ public class WorkflowExecutionResult {
         return WorkflowExecutionResult.builder()
             .executionId(executionId)
             .success(false)
-            .status("FAILED")
+            .status(WorkflowExecutionStatus.FAILED.name())
             .failedNode(failedNode)
             .errorMessage(errorMessage)
+            .build();
+    }
+
+    public static WorkflowExecutionResult queued(UUID id) {
+        return WorkflowExecutionResult.builder()
+            .executionId(id)
+            .status(WorkflowExecutionStatus.QUEUED.name())
+            .success(true)
             .build();
     }
 }

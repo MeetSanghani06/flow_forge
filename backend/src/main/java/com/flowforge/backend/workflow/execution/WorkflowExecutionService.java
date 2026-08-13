@@ -1,5 +1,7 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.workflow.outbox.WorkflowOutboxService;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.flowforge.backend.common.exception.ResourceNotFoundException;
@@ -42,6 +44,7 @@ public class WorkflowExecutionService {
     private final WorkspaceContext workspaceContext;
     private final ObjectMapper objectMapper;
     private final ConditionEvaluator conditionEvaluator;
+    private final WorkflowOutboxService outboxService;
 
     public WorkflowExecutionResult execute(
         UUID workflowVersionId,
@@ -521,5 +524,36 @@ public class WorkflowExecutionService {
                         + node.getType()
                 )
             );
+    }
+
+    @Transactional
+    public WorkflowExecutionResult requestExecution(
+        UUID workflowVersionId,
+        WorkflowExecutionRequest request
+    ) {
+
+        WorkflowVersion version =
+            workflowVersionRepository
+                .findById(workflowVersionId)
+                .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                        "Workflow version not found"
+                    )
+                );
+
+        WorkflowExecution execution =
+            persistenceService.startExecution(
+                version,
+                request.input()
+            );
+
+        outboxService.createExecutionRequestedEvent(
+            execution.getId(),
+            version.getId()
+        );
+
+        return WorkflowExecutionResult.queued(
+            execution.getId()
+        );
     }
 }
