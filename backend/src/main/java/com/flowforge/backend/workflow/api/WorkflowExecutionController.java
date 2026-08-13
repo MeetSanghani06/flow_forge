@@ -30,7 +30,7 @@ public class WorkflowExecutionController {
                 WorkflowExecutionRequest.empty();
         }
 
-        return executionService.execute(
+        return executionService.requestExecution(
             workflowVersionId,
             request
         );

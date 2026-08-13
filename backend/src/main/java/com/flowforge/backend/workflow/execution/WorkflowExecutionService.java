@@ -47,6 +47,7 @@ public class WorkflowExecutionService {
     private final WorkflowOutboxService outboxService;
 
     public WorkflowExecutionResult execute(
+        UUID executionId,
         UUID workflowVersionId,
         WorkflowExecutionRequest request
     ) {
@@ -70,15 +71,9 @@ public class WorkflowExecutionService {
                 workflowVersionId
             );
 
-        WorkflowExecution execution =
-            persistenceService.startExecution(
-                version,
-                request.input()
-            );
-
         WorkflowExecutionResult result =
             executeGraph(
-                execution.getId(),
+                executionId,
                 nodes,
                 edges,
                 request.input()
@@ -87,7 +82,7 @@ public class WorkflowExecutionService {
         if (result.isSuccess()) {
 
             persistenceService.completeExecution(
-                execution.getId(),
+                executionId,
                 result.getOutput() == null
                     ? null
                     : result.getOutput().toString()
@@ -96,7 +91,7 @@ public class WorkflowExecutionService {
         } else {
 
             persistenceService.failExecution(
-                execution.getId(),
+                executionId,
                 result.getErrorMessage()
             );
         }
@@ -137,7 +132,7 @@ public class WorkflowExecutionService {
             );
         }
 
-        return execute(
+        return requestExecution(
             activeVersion.getId(),
             request
         );
