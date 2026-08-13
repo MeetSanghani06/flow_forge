@@ -1,6 +1,5 @@
 package com.flowforge.backend.workflow.execution;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.flowforge.backend.workflow.entity.WorkflowNode;
 import com.flowforge.backend.workflow.entity.WorkflowVersion;
 import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;

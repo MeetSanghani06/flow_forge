@@ -1,5 +1,6 @@
 package com.flowforge.backend.workflow.execution;
 
+import tools.jackson.databind.JsonNode;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -19,13 +20,17 @@ public class WorkflowExecutionResult {
 
     private final String errorMessage;
 
+    private JsonNode output;
+
     public static WorkflowExecutionResult success(
-        UUID executionId
+        UUID executionId,
+        JsonNode output
     ) {
         return WorkflowExecutionResult.builder()
             .executionId(executionId)
             .success(true)
             .status("SUCCESS")
+            .output(output)
             .build();
     }
 

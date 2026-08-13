@@ -1,10 +1,9 @@
 package com.flowforge.backend.workflow.execution;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +24,7 @@ public class ExpressionResolver {
     /**
      * Resolves expressions inside a String.
      *
-     * Example:
+     * Examples:
      *
      * "{{ input.userId }}"
      *       -> "123"
@@ -80,7 +79,7 @@ public class ExpressionResolver {
     }
 
     /**
-     * Resolves expressions recursively inside a JSON tree.
+     * Recursively resolves expressions inside a JSON tree.
      *
      * Entire expression:
      *
@@ -88,7 +87,7 @@ public class ExpressionResolver {
      *   "userId": "{{ input.userId }}"
      * }
      *
-     * preserves the original type:
+     * becomes:
      *
      * {
      *   "userId": 123
@@ -124,22 +123,12 @@ public class ExpressionResolver {
             ObjectNode resolved =
                 objectMapper.createObjectNode();
 
-            Iterator<Map.Entry<String, JsonNode>> fields =
-                node.fields();
-
-            while (fields.hasNext()) {
-
-                Map.Entry<String, JsonNode> field =
-                    fields.next();
-
+            node.forEachEntry((key, value) -> {
                 resolved.set(
-                    field.getKey(),
-                    resolveJson(
-                        field.getValue(),
-                        context
-                    )
+                    key,
+                    resolveJson(value, context)
                 );
-            }
+            });
 
             return resolved;
         }
@@ -162,10 +151,7 @@ public class ExpressionResolver {
             return resolved;
         }
 
-        /*
-         * Numbers, booleans, etc.
-         * are already concrete values.
-         */
+        // Numbers, booleans, etc. require no resolution.
         return node;
     }
 
@@ -180,12 +166,10 @@ public class ExpressionResolver {
         /*
          * Entire value is an expression.
          *
-         * Example:
-         *
          * "{{ input.userId }}"
          *
          * If userId = 123,
-         * return NumericNode(123), NOT TextNode("123").
+         * return NumericNode(123), not TextNode("123").
          */
         if (matcher.matches()) {
 
@@ -199,31 +183,27 @@ public class ExpressionResolver {
                 );
 
             return resolved == null
-                ? TextNode.valueOf("")
+                ? objectMapper.valueToTree("")
                 : resolved;
         }
 
         /*
-         * Expression embedded inside text.
+         * Embedded expression.
          *
-         * Example:
-         *
-         * "https://api.com/{{ input.userId }}"
+         * "https://api.com/users/{{ input.userId }}"
          */
-        return TextNode.valueOf(
-            resolve(
-                value,
-                context
-            )
+        return objectMapper.valueToTree(
+            resolve(value, context)
         );
     }
 
     /**
-     * Resolves:
+     * Resolves expressions such as:
      *
      * input.userId
      * input.user.id
-     * nodes.fetch_data.response
+     * nodes.get_user.name
+     * nodes.get_user.address.city
      * nodes.fetch_data.response.id
      */
     private JsonNode resolveExpressionAsJson(
@@ -268,13 +248,13 @@ public class ExpressionResolver {
     }
 
     /**
-     * Resolves a path against Map<String, Object>.
+     * Resolves a property path against Map<String, Object>.
      *
-     * We convert each Object to JsonNode as we traverse it.
+     * The execution context intentionally remains
+     * Map<String, Object>.
      *
-     * This keeps WorkflowExecutionContext flexible while
-     * allowing the expression engine to work consistently
-     * with JSON values.
+     * Each value is converted to JsonNode before
+     * traversing nested properties.
      */
     private JsonNode resolvePath(
         Map<String, JsonNode> source,
@@ -333,8 +313,7 @@ public class ExpressionResolver {
     }
 
     /**
-     * Converts arbitrary execution-context values
-     * into JsonNode.
+     * Converts execution-context values into JsonNode.
      */
     private JsonNode toJsonNode(
         Object value

@@ -1,8 +1,7 @@
 package com.flowforge.backend.workflow.execution;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -80,7 +79,7 @@ public class ConditionEvaluator {
             && value.endsWith("}}")) {
 
             return expressionResolver.resolveJson(
-                TextNode.valueOf(value),
+                objectMapper.valueToTree(value),
                 context
             );
         }
@@ -98,7 +97,7 @@ public class ConditionEvaluator {
                     && value.endsWith("'"))
         ) {
 
-            return TextNode.valueOf(
+            return objectMapper.valueToTree(
                 value.substring(
                     1,
                     value.length() - 1
@@ -127,7 +126,7 @@ public class ConditionEvaluator {
              *
              * status == SUCCESS
              */
-            return TextNode.valueOf(value);
+            return objectMapper.valueToTree(value);
         }
     }
 

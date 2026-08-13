@@ -1,7 +1,7 @@
 package com.flowforge.backend.workflow.execution;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.flowforge.backend.common.exception.ResourceNotFoundException;
 import com.flowforge.backend.workflow.entity.Workflow;
 import com.flowforge.backend.workflow.entity.WorkflowEdge;
@@ -85,7 +85,9 @@ public class WorkflowExecutionService {
 
             persistenceService.completeExecution(
                 execution.getId(),
-                null
+                result.getOutput() == null
+                    ? null
+                    : result.getOutput().toString()
             );
 
         } else {
@@ -346,11 +348,18 @@ public class WorkflowExecutionService {
                         context
                     );
 
+                JsonNode outputJson = null;
+
                 if (result.output() != null) {
+
+                    outputJson =
+                        objectMapper.readTree(
+                            result.output()
+                        );
 
                     context.putNodeOutput(
                         node.getNodeKey(),
-                        objectMapper.readTree(result.output())
+                        outputJson
                     );
                 }
 
@@ -405,8 +414,31 @@ public class WorkflowExecutionService {
             );
         }
 
+        JsonNode finalOutput = null;
+
+        if (!nodes.isEmpty()) {
+
+            WorkflowNode lastNode =
+                nodes.stream()
+                    .filter(node ->
+                        context.getNodeOutput(
+                            node.getNodeKey()
+                        ) != null
+                    )
+                    .reduce((first, second) -> second)
+                    .orElse(null);
+
+            if (lastNode != null) {
+                finalOutput =
+                    context.getNodeOutput(
+                        lastNode.getNodeKey()
+                    );
+            }
+        }
+
         return WorkflowExecutionResult.success(
-            executionId
+            executionId,
+            finalOutput
         );
     }
 
