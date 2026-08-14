@@ -544,7 +544,8 @@ public class WorkflowExecutionService {
 
         outboxService.createExecutionRequestedEvent(
             execution.getId(),
-            version.getId()
+            version.getId(),
+            request.input()
         );
 
         return WorkflowExecutionResult.queued(

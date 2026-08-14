@@ -6,7 +6,10 @@ import com.flowforge.backend.workflow.execution.repository.WorkflowExecutionRepo
 import com.flowforge.backend.workflow.outbox.WorkflowExecutionRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.BackOff;
+import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -21,19 +24,20 @@ public class WorkflowExecutionConsumer {
     private final WorkflowExecutionRepository executionRepository;
     private final ObjectMapper objectMapper;
 
+    @RetryableTopic(attempts = "4")
     @KafkaListener(
         topics = "${flowforge.kafka.workflow-execution-topic}",
         groupId = "flowforge-workflow-executor"
     )
     public void consume(String payload) {
 
+        WorkflowExecutionRequestedEvent event = null;
         try {
 
-            WorkflowExecutionRequestedEvent event =
-                objectMapper.readValue(
-                    payload,
-                    WorkflowExecutionRequestedEvent.class
-                );
+            event = objectMapper.readValue(
+                payload,
+                WorkflowExecutionRequestedEvent.class
+            );
 
             // 1. Atomically claim the execution
             int claimed =
@@ -71,14 +75,21 @@ public class WorkflowExecutionConsumer {
         } catch (Exception exception) {
 
             log.error(
-                "WORKFLOW_EXECUTION_CONSUMER_FAILED",
+                "WORKFLOW_EXECUTION_CONSUMER_FAILED | executionId={}",
+                event.executionId(),
                 exception
             );
 
-            throw new IllegalStateException(
-                "Workflow execution consumer failed",
-                exception
-            );
+            throw exception;
         }
+    }
+
+    @DltHandler
+    public void handleDlt(String payload) {
+
+        log.error(
+            "WORKFLOW_EXECUTION_MOVED_TO_DLT | payload={}",
+            payload
+        );
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -20,7 +21,8 @@ public class WorkflowOutboxService {
     @Transactional
     public void createExecutionRequestedEvent(
         UUID executionId,
-        UUID workflowVersionId
+        UUID workflowVersionId,
+        Map<String, Object> input
     ) {
 
         try {
@@ -28,7 +30,8 @@ public class WorkflowOutboxService {
             WorkflowExecutionRequestedEvent event =
                 new WorkflowExecutionRequestedEvent(
                     executionId,
-                    workflowVersionId
+                    workflowVersionId,
+                    input
                 );
 
             WorkflowOutboxEvent outbox =
