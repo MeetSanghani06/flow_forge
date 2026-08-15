@@ -5,6 +5,7 @@ import com.flowforge.backend.common.response.ApiError;
 import com.flowforge.backend.common.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -71,6 +72,30 @@ public class GlobalExceptionHandler {
                         List.of(
                             ApiError.builder()
                                 .code(ErrorCode.UNAUTHORIZED.name())
+                                .message(ex.getMessage())
+                                .build()
+                        )
+                    )
+                    .build()
+            );
+    }
+
+    @ExceptionHandler(
+        WorkflowRateLimitExceededException.class
+    )
+    public ResponseEntity<ApiResponse<Void>> handleRateLimit(
+        WorkflowRateLimitExceededException ex
+    ) {
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(
+                ApiResponse.<Void>builder()
+                    .success(false)
+                    .timestamp(Instant.now())
+                    .errors(
+                        List.of(
+                            ApiError.builder()
+                                .code(ErrorCode.TOO_MANY_REQUESTS.name())
                                 .message(ex.getMessage())
                                 .build()
                         )

@@ -71,3 +71,7 @@ flowforge:
       refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}
   kafka:
     workflow-execution-topic: workflow-execution
+  rate-limit:
+    workflow-execution:
+      max-requests: 3
+      window-seconds: 60

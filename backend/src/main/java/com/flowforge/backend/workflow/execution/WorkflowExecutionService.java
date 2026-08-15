@@ -1,7 +1,9 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.common.exception.WorkflowRateLimitExceededException;
 import com.flowforge.backend.workflow.execution.repository.WorkflowExecutionRepository;
 import com.flowforge.backend.workflow.outbox.WorkflowOutboxService;
+import com.flowforge.backend.workflow.service.WorkflowRateLimitService;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -41,6 +43,7 @@ public class WorkflowExecutionService {
     private final ObjectMapper objectMapper;
     private final ConditionEvaluator conditionEvaluator;
     private final WorkflowOutboxService outboxService;
+    private final WorkflowRateLimitService rateLimitService;
 
     public WorkflowExecutionResult execute(
         UUID executionId,
@@ -132,7 +135,8 @@ public class WorkflowExecutionService {
         return requestExecution(
             activeVersion.getId(),
             request,
-            idempotencyKey
+            idempotencyKey,
+            userId
         );
     }
 
@@ -523,8 +527,13 @@ public class WorkflowExecutionService {
     public WorkflowExecutionResult requestExecution(
         UUID workflowVersionId,
         WorkflowExecutionRequest request,
-        String idempotencyKey
+        String idempotencyKey,
+        UUID userId
     ) {
+
+        if (!rateLimitService.isAllowed(userId)) {
+            throw new WorkflowRateLimitExceededException();
+        }
 
         WorkflowVersion version =
             workflowVersionRepository

@@ -27,7 +27,8 @@ public class WorkflowExecutionController {
         @RequestBody(
             required = false
         )
-        WorkflowExecutionRequest request
+        WorkflowExecutionRequest request,
+        Authentication authentication
     ) {
 
         if (request == null) {
@@ -35,10 +36,16 @@ public class WorkflowExecutionController {
                 WorkflowExecutionRequest.empty();
         }
 
+        UUID userId =
+            UUID.fromString(
+                authentication.getName()
+            );
+
         return executionService.requestExecution(
             workflowVersionId,
             request,
-            idempotencyKey
+            idempotencyKey,
+            userId
         );
     }
 

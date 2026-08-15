@@ -9,3 +9,9 @@ logging:
   level:
     org.springframework.boot.context.config: DEBUG
     com.zaxxer.hikari: DEBUG
+
+flowforge:
+  rate-limit:
+    workflow-execution:
+      max-requests: 10
+      window-seconds: 60
