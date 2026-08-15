@@ -37,6 +37,7 @@ public class WorkflowGraphService {
     private final WorkflowGraphValidator graphValidator;
     private final ObjectMapper objectMapper;
     private final WorkflowExecutionRepository executionRepository;
+    private final WorkflowGraphCacheService cacheService;
 
     @CacheEvict(
         value = "workflow-graphs",
@@ -184,6 +185,10 @@ public class WorkflowGraphService {
         int versionNumber,
         UUID userId
     ) {
+        cacheService.logCacheStatus(
+            workflowId,
+            versionNumber
+        );
 
         workspaceContext.requireMembership(
             workspaceId,

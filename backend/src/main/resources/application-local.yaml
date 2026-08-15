@@ -62,6 +62,8 @@ logging:
     com.flowforge.backend.workflow.execution: INFO
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
+    org.springframework.cache: TRACE
+    org.springframework.data.redis.cache: DEBUG
 
 flowforge:
   security:
