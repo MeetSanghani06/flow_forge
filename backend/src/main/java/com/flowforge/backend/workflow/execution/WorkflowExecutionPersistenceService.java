@@ -27,9 +27,10 @@ public class WorkflowExecutionPersistenceService {
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public WorkflowExecution startExecution(
+    public WorkflowExecution createQueuedExecution(
         WorkflowVersion workflowVersion,
-        Map<String, Object> input
+        Map<String, Object> input,
+        String idempotencyKey
     ) {
 
         WorkflowExecution execution =
@@ -40,12 +41,14 @@ public class WorkflowExecutionPersistenceService {
         );
 
         execution.setStatus(
-            WorkflowExecutionStatus.RUNNING
+            WorkflowExecutionStatus.QUEUED
         );
 
         execution.setStartedAt(
             Instant.now()
         );
+
+        execution.setIdempotencyKey(idempotencyKey);
 
         try {
 

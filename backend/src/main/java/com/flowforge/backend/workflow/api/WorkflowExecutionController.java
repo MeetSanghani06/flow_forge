@@ -19,6 +19,11 @@ public class WorkflowExecutionController {
     @PostMapping("/workflows/{workflowVersionId}/execute")
     public WorkflowExecutionResult execute(
         @PathVariable UUID workflowVersionId,
+        @RequestHeader(
+            value = "Idempotency-Key",
+            required = false
+        )
+        String idempotencyKey,
         @RequestBody(
             required = false
         )
@@ -32,7 +37,8 @@ public class WorkflowExecutionController {
 
         return executionService.requestExecution(
             workflowVersionId,
-            request
+            request,
+            idempotencyKey
         );
     }
 
@@ -46,6 +52,11 @@ public class WorkflowExecutionController {
             required = false
         )
         WorkflowExecutionRequest request,
+        @RequestHeader(
+            value = "Idempotency-Key",
+            required = false
+        )
+        String idempotencyKey,
         Authentication authentication
     ) {
 
@@ -63,7 +74,8 @@ public class WorkflowExecutionController {
             workspaceId,
             workflowId,
             userId,
-            request
+            request,
+            idempotencyKey
         );
     }
 }

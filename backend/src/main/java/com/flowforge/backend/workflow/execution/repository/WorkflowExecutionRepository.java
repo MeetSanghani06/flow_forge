@@ -24,17 +24,37 @@ public interface WorkflowExecutionRepository
         WorkflowExecutionStatus status
     );
 
+    Optional<WorkflowExecution> findByWorkflowVersionIdAndIdempotencyKey(
+        UUID workflowVersionId,
+        String idempotencyKey
+    );
+
     @Modifying
     @Transactional
     @Query("""
     update WorkflowExecution e
-       set e.status = com.flowforge.backend.workflow.execution.entity.WorkflowExecutionStatus.RUNNING,
+       set e.status = 'RUNNING',
            e.startedAt = :startedAt
      where e.id = :executionId
-       and e.status = com.flowforge.backend.workflow.execution.entity.WorkflowExecutionStatus.QUEUED
+       and e.status = 'QUEUED'
 """)
     int claimExecution(
         @Param("executionId") UUID executionId,
         @Param("startedAt") Instant startedAt
+    );
+
+    @Modifying
+    @Transactional
+    @Query("""
+    update WorkflowExecution e
+       set e.status =
+           com.flowforge.backend.workflow.execution.entity.WorkflowExecutionStatus.FAILED,
+           e.completedAt = CURRENT_TIMESTAMP,
+           e.errorMessage = :errorMessage
+     where e.id = :executionId
+""")
+    int markFailed(
+        @Param("executionId") UUID executionId,
+        @Param("errorMessage") String errorMessage
     );
 }

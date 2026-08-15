@@ -1,5 +1,6 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.workflow.execution.repository.WorkflowExecutionRepository;
 import com.flowforge.backend.workflow.outbox.WorkflowOutboxService;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -22,13 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +36,7 @@ public class WorkflowExecutionService {
     private final WorkflowRepository workflowRepository;
     private final WorkflowVersionRepository workflowVersionRepository;
     private final WorkflowExecutionPersistenceService persistenceService;
+    private final WorkflowExecutionRepository executionRepository;
     private final WorkspaceContext workspaceContext;
     private final ObjectMapper objectMapper;
     private final ConditionEvaluator conditionEvaluator;
@@ -103,7 +99,8 @@ public class WorkflowExecutionService {
         UUID workspaceId,
         UUID workflowId,
         UUID userId,
-        WorkflowExecutionRequest request
+        WorkflowExecutionRequest request,
+        String idempotencyKey
     ) {
 
         workspaceContext.requireMembership(
@@ -134,7 +131,8 @@ public class WorkflowExecutionService {
 
         return requestExecution(
             activeVersion.getId(),
-            request
+            request,
+            idempotencyKey
         );
     }
 
@@ -524,7 +522,8 @@ public class WorkflowExecutionService {
     @Transactional
     public WorkflowExecutionResult requestExecution(
         UUID workflowVersionId,
-        WorkflowExecutionRequest request
+        WorkflowExecutionRequest request,
+        String idempotencyKey
     ) {
 
         WorkflowVersion version =
@@ -536,10 +535,35 @@ public class WorkflowExecutionService {
                     )
                 );
 
+        /*
+         * API-level idempotency.
+         *
+         * Same workflow version + same idempotency key
+         * returns the existing execution.
+         */
+        if (idempotencyKey != null &&
+            !idempotencyKey.isBlank()) {
+
+            Optional<WorkflowExecution> existing =
+                executionRepository
+                    .findByWorkflowVersionIdAndIdempotencyKey(
+                        workflowVersionId,
+                        idempotencyKey
+                    );
+
+            if (existing.isPresent()) {
+
+                return WorkflowExecutionResult.queued(
+                    existing.get().getId()
+                );
+            }
+        }
+
         WorkflowExecution execution =
-            persistenceService.startExecution(
+            persistenceService.createQueuedExecution(
                 version,
-                request.input()
+                request.input(),
+                idempotencyKey
             );
 
         outboxService.createExecutionRequestedEvent(

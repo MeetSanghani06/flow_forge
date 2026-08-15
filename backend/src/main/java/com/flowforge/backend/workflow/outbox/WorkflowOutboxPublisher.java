@@ -22,7 +22,7 @@ public class WorkflowOutboxPublisher {
     @Value("${flowforge.kafka.workflow-execution-topic}")
     private String topic;
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelay = 10000)
     @Transactional
     public void publishPendingEvents() {
 
