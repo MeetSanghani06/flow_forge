@@ -5,6 +5,12 @@ spring:
   profiles:
     active: local
 
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+      cache-null-values: false
+
 logging:
   level:
     org.springframework.boot.context.config: DEBUG
@@ -15,3 +21,4 @@ flowforge:
     workflow-execution:
       max-requests: 10
       window-seconds: 60
+

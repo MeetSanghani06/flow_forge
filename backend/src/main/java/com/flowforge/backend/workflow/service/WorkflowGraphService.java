@@ -16,9 +16,11 @@ import com.flowforge.backend.workflow.repository.WorkflowVersionRepository;
 import com.flowforge.backend.workflow.validation.WorkflowGraphValidator;
 import com.flowforge.backend.workspace.service.WorkspaceContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +38,10 @@ public class WorkflowGraphService {
     private final ObjectMapper objectMapper;
     private final WorkflowExecutionRepository executionRepository;
 
+    @CacheEvict(
+        value = "workflow-graphs",
+        key = "#workflowId + ':' + #versionNumber"
+    )
     @Transactional
     public WorkflowGraphResponse saveGraph(
         UUID workspaceId,
@@ -167,6 +173,10 @@ public class WorkflowGraphService {
         return getGraph(version);
     }
 
+    @Cacheable(
+        value = "workflow-graphs",
+        key = "#workflowId + ':' + #versionNumber"
+    )
     @Transactional(readOnly = true)
     public WorkflowGraphResponse getGraph(
         UUID workspaceId,
