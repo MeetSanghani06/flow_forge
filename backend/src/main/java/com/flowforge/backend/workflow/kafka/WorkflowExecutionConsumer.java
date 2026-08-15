@@ -1,6 +1,7 @@
 package com.flowforge.backend.workflow.kafka;
 
 import com.flowforge.backend.common.exception.ResourceNotFoundException;
+import com.flowforge.backend.workflow.execution.DistributedLockService;
 import com.flowforge.backend.workflow.execution.WorkflowExecutionService;
 import com.flowforge.backend.workflow.execution.dto.WorkflowExecutionRequest;
 import com.flowforge.backend.workflow.execution.entity.WorkflowExecution;
@@ -26,6 +27,7 @@ public class WorkflowExecutionConsumer {
     private final ObjectMapper objectMapper;
     private final WorkflowExecutionRepository executionRepository;
     private final WorkflowExecutionService executionService;
+    private final DistributedLockService distributedLockService;
 
     @RetryableTopic(
         attempts = "4"
@@ -109,18 +111,49 @@ public class WorkflowExecutionConsumer {
                 return;
             }
 
-            log.info(
-                "WORKFLOW_EXECUTION_CLAIMED | executionId={}",
-                event.executionId()
-            );
+            String lockKey =
+                "workflow:execution:lock:"
+                    + event.executionId();
 
-            executionService.execute(
-                event.executionId(),
-                event.workflowVersionId(),
-                new WorkflowExecutionRequest(
-                    event.input()
-                )
-            );
+            String lockValue =
+                distributedLockService.tryAcquire(
+                    lockKey
+                );
+
+            if (lockValue == null) {
+
+                log.warn(
+                    "WORKFLOW_EXECUTION_LOCK_BUSY | executionId={}",
+                    event.executionId()
+                );
+
+                throw new IllegalStateException(
+                    "Workflow execution is currently locked"
+                );
+            }
+
+            try {
+
+                log.info(
+                    "WORKFLOW_EXECUTION_LOCKED | executionId={}",
+                    event.executionId()
+                );
+
+                executionService.execute(
+                    event.executionId(),
+                    event.workflowVersionId(),
+                    new WorkflowExecutionRequest(
+                        event.input()
+                    )
+                );
+
+            } finally {
+
+                distributedLockService.release(
+                    lockKey,
+                    lockValue
+                );
+            }
 
         } catch (Exception exception) {
 
