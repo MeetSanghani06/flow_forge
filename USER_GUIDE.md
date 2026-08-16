@@ -275,7 +275,7 @@ npm run dev
 The application should be available at:
 
 ```text
-http://localhost:3000
+http://localhost:5173
 ```
 
 The frontend uses:
@@ -322,7 +322,7 @@ npm run dev
 Then open:
 
 ```text
-http://localhost:3000
+http://localhost:5173
 ```
 
 ---
@@ -334,7 +334,7 @@ http://localhost:3000
 Open:
 
 ```text
-http://localhost:3000
+http://localhost:5173
 ```
 
 Create an account if required by the local backend and sign in.
@@ -808,7 +808,7 @@ For evaluators, the following sequence provides the clearest demonstration.
 ### 1. Open FlowForge
 
 ```text
-http://localhost:3000
+http://localhost:5173
 ```
 
 ### 2. Open a workflow
@@ -1086,7 +1086,7 @@ npm run dev
 Open:
 
 ```text
-http://localhost:3000
+http://localhost:5173
 ```
 
 ---
