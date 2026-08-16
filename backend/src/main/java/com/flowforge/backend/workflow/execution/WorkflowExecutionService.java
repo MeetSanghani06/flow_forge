@@ -1,5 +1,10 @@
 package com.flowforge.backend.workflow.execution;
 
+import com.flowforge.backend.common.exception.WorkflowRateLimitExceededException;
+import com.flowforge.backend.workflow.execution.repository.WorkflowExecutionRepository;
+import com.flowforge.backend.workflow.outbox.WorkflowOutboxService;
+import com.flowforge.backend.workflow.service.WorkflowRateLimitService;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.flowforge.backend.common.exception.ResourceNotFoundException;
@@ -20,13 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -39,11 +38,15 @@ public class WorkflowExecutionService {
     private final WorkflowRepository workflowRepository;
     private final WorkflowVersionRepository workflowVersionRepository;
     private final WorkflowExecutionPersistenceService persistenceService;
+    private final WorkflowExecutionRepository executionRepository;
     private final WorkspaceContext workspaceContext;
     private final ObjectMapper objectMapper;
     private final ConditionEvaluator conditionEvaluator;
+    private final WorkflowOutboxService outboxService;
+    private final WorkflowRateLimitService rateLimitService;
 
     public WorkflowExecutionResult execute(
+        UUID executionId,
         UUID workflowVersionId,
         WorkflowExecutionRequest request
     ) {
@@ -67,15 +70,9 @@ public class WorkflowExecutionService {
                 workflowVersionId
             );
 
-        WorkflowExecution execution =
-            persistenceService.startExecution(
-                version,
-                request.input()
-            );
-
         WorkflowExecutionResult result =
             executeGraph(
-                execution.getId(),
+                executionId,
                 nodes,
                 edges,
                 request.input()
@@ -84,7 +81,7 @@ public class WorkflowExecutionService {
         if (result.isSuccess()) {
 
             persistenceService.completeExecution(
-                execution.getId(),
+                executionId,
                 result.getOutput() == null
                     ? null
                     : result.getOutput().toString()
@@ -93,7 +90,7 @@ public class WorkflowExecutionService {
         } else {
 
             persistenceService.failExecution(
-                execution.getId(),
+                executionId,
                 result.getErrorMessage()
             );
         }
@@ -105,7 +102,8 @@ public class WorkflowExecutionService {
         UUID workspaceId,
         UUID workflowId,
         UUID userId,
-        WorkflowExecutionRequest request
+        WorkflowExecutionRequest request,
+        String idempotencyKey
     ) {
 
         workspaceContext.requireMembership(
@@ -134,9 +132,11 @@ public class WorkflowExecutionService {
             );
         }
 
-        return execute(
+        return requestExecution(
             activeVersion.getId(),
-            request
+            request,
+            idempotencyKey,
+            userId
         );
     }
 
@@ -521,5 +521,68 @@ public class WorkflowExecutionService {
                         + node.getType()
                 )
             );
+    }
+
+    @Transactional
+    public WorkflowExecutionResult requestExecution(
+        UUID workflowVersionId,
+        WorkflowExecutionRequest request,
+        String idempotencyKey,
+        UUID userId
+    ) {
+
+        if (!rateLimitService.isAllowed(userId)) {
+            throw new WorkflowRateLimitExceededException();
+        }
+
+        WorkflowVersion version =
+            workflowVersionRepository
+                .findById(workflowVersionId)
+                .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                        "Workflow version not found"
+                    )
+                );
+
+        /*
+         * API-level idempotency.
+         *
+         * Same workflow version + same idempotency key
+         * returns the existing execution.
+         */
+        if (idempotencyKey != null &&
+            !idempotencyKey.isBlank()) {
+
+            Optional<WorkflowExecution> existing =
+                executionRepository
+                    .findByWorkflowVersionIdAndIdempotencyKey(
+                        workflowVersionId,
+                        idempotencyKey
+                    );
+
+            if (existing.isPresent()) {
+
+                return WorkflowExecutionResult.queued(
+                    existing.get().getId()
+                );
+            }
+        }
+
+        WorkflowExecution execution =
+            persistenceService.createQueuedExecution(
+                version,
+                request.input(),
+                idempotencyKey
+            );
+
+        outboxService.createExecutionRequestedEvent(
+            execution.getId(),
+            version.getId(),
+            request.input()
+        );
+
+        return WorkflowExecutionResult.queued(
+            execution.getId()
+        );
     }
 }

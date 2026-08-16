@@ -14,6 +14,8 @@ public enum ErrorCode {
 
     FORBIDDEN,
 
-    BAD_REQUEST
+    BAD_REQUEST,
+
+    TOO_MANY_REQUESTS,
 
 }

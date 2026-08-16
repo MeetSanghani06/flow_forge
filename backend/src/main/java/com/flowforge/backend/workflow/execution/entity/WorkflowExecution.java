@@ -11,6 +11,15 @@ import java.time.Instant;
 @Entity
 @Table(
     name = "workflow_executions",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_workflow_execution_idempotency",
+            columnNames = {
+                "workflow_version_id",
+                "idempotency_key"
+            }
+        )
+    },
     indexes = {
         @Index(
             name = "idx_workflow_executions_version_id",
@@ -23,6 +32,10 @@ import java.time.Instant;
         @Index(
             name = "idx_workflow_executions_started_at",
             columnList = "started_at"
+        ),
+        @Index(
+            name = "idx_workflow_executions_idempotency",
+            columnList = "workflow_version_id,idempotency_key"
         )
     }
 )
@@ -36,6 +49,9 @@ public class WorkflowExecution extends BaseEntity {
         nullable = false
     )
     private WorkflowVersion workflowVersion;
+
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
