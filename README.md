@@ -390,6 +390,49 @@ Relevant endpoints include:
 /actuator/metrics
 ```
 
+## 🏗️ System Architecture
+
+<p align="center">
+  <img
+    src="./docs/assets/diagrams/architecture.png"
+    alt="FlowForge System Architecture"
+    width="100%"
+  />
+</p>
+
+### Architecture Highlights
+
+- **React + React Flow** — visual DAG workflow builder
+- **Spring Boot** — workflow, versioning, execution and API layer
+- **Apache Kafka** — asynchronous event-driven execution
+- **PostgreSQL** — durable workflow, version and execution persistence
+- **Redis** — caching, rate limiting and distributed locking
+- **Spring AI / OpenAI** — AI-powered workflow nodes and prompt-driven workflow generation
+- **Transactional Outbox** — reliable database-to-event publishing
+- **Idempotency** — safe event processing and duplicate protection
+- **Retry + DLQ** — resilient failure handling
+- **Node-level execution tracking** — detailed execution observability
+- **Spring Actuator / Metrics** — production monitoring and operational visibility
+
+React UI
+      │
+ REST API
+      │
+Spring Boot
+(Modular Monolith)
+      │
+Workflow Engine
+      │
+Transactional Outbox
+      │
+Kafka
+      │
+Workers
+      │
+Execution Events
+      │
+Dashboard
+
 ---
 
 # 6. AI Capabilities

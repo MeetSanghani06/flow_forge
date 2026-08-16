@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { ExecuteDialog } from "@/components/builder/ExecuteDialog";
 import { FlowNodeCard } from "@/components/builder/FlowNodeCard";
 import { NodeInspector } from "@/components/builder/NodeInspector";
+import { EdgeInspector } from "@/components/builder/EdgeInspector";
 import { NodePalette } from "@/components/builder/NodePalette";
 import { EmptyState, ErrorState, LoadingState } from "@/components/common/StateBlocks";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -102,6 +103,16 @@ function WorkflowBuilderPage() {
     const [nodes, setNodes] = useState<FlowNode[]>([]);
     const [edges, setEdges] = useState<FlowEdge[]>([]);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+    const selectedEdge = edges.find((edge) => edge.id === selectedEdgeId);
+
+    const sourceNode = selectedEdge
+        ? nodes.find((node) => node.id === selectedEdge.source)
+        : undefined;
+
+    const targetNode = selectedEdge
+        ? nodes.find((node) => node.id === selectedEdge.target)
+        : undefined;
 
     useEffect(() => {
         if (!graphQuery.data) return;
@@ -119,11 +130,25 @@ function WorkflowBuilderPage() {
         (changes: EdgeChange[]) => setEdges((current) => applyEdgeChanges(changes, current)),
         [],
     );
-    const onConnect = useCallback(
-        (connection: Connection) =>
-            setEdges((current) => addEdge({ ...connection, animated: true }, current)),
-        [],
-    );
+    // const onConnect = useCallback(
+    //     (connection: Connection) =>
+    //         setEdges((current) => addEdge({ ...connection, animated: true }, current)),
+    //     [],
+    // );
+    const onConnect = useCallback((connection: Connection) => {
+        setEdges((current) =>
+            addEdge(
+                {
+                    ...connection,
+                    animated: true,
+                    data: {
+                        condition: "",
+                    },
+                },
+                current,
+            ),
+        );
+    }, []);
 
     const selectedNode = nodes.find((node) => node.id === selectedNodeId);
     const hasTrigger = nodes.some((node) => node.data.nodeType === TRIGGER_NODE_TYPE);
@@ -412,7 +437,14 @@ function WorkflowBuilderPage() {
                                             onEdgesChange={onEdgesChange}
                                             onConnect={onConnect}
                                             onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                                            onPaneClick={() => setSelectedNodeId(null)}
+                                            onEdgeClick={(_, edge) => {
+                                                setSelectedEdgeId(edge.id);
+                                                setSelectedNodeId(null);
+                                            }}
+                                            onPaneClick={() => {
+                                                setSelectedNodeId(null);
+                                                setSelectedNodeId(null);
+                                            }}
                                             fitView
                                             proOptions={{ hideAttribution: true }}
                                         >
@@ -426,12 +458,41 @@ function WorkflowBuilderPage() {
                                     </>
                                 )}
                             </div>
-                            <NodeInspector
-                                node={selectedNode}
-                                onChangeLabel={(label) => updateSelected({ label })}
-                                onChangeConfig={(config) => updateSelected({ config })}
-                                onDelete={deleteSelected}
-                            />
+                            {selectedEdge ? (
+                                <EdgeInspector
+                                    edge={selectedEdge}
+                                    onChangeCondition={(condition) => {
+                                        setEdges((current) =>
+                                            current.map((edge) =>
+                                                edge.id === selectedEdgeId
+                                                    ? {
+                                                          ...edge,
+                                                          label: condition || undefined,
+                                                          data: {
+                                                              ...edge.data,
+                                                              condition,
+                                                          },
+                                                      }
+                                                    : edge,
+                                            ),
+                                        );
+                                    }}
+                                    onDelete={() => {
+                                        setEdges((current) =>
+                                            current.filter((edge) => edge.id !== selectedEdgeId),
+                                        );
+
+                                        setSelectedEdgeId(null);
+                                    }}
+                                />
+                            ) : (
+                                <NodeInspector
+                                    node={selectedNode}
+                                    onChangeLabel={(label) => updateSelected({ label })}
+                                    onChangeConfig={(config) => updateSelected({ config })}
+                                    onDelete={deleteSelected}
+                                />
+                            )}
                         </div>
                     )}
                 </div>
