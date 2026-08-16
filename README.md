@@ -639,7 +639,7 @@ npm install
 Start the development server:
 
 ```bash
-npm run dev -- --port 5173
+npm run dev
 ```
 
 The frontend will be available at:
@@ -672,7 +672,7 @@ cd backend
 ```bash
 cd frontend
 npm install
-npm run dev -- --port 5173
+npm run dev
 ```
 
 Then open:
