@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/workflow-executions")
+@RequestMapping("/api/v1/workflow-executions")
 @RequiredArgsConstructor
 public class WorkflowExecutionHistoryController {
 

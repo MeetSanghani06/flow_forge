@@ -279,3 +279,15 @@ Frontend • React • UI/UX • Dashboard
 # 📄 License
 
 This project was built as part of the Coding Shuttle Build-A-Thon 2026 and will be made public after the hackathon concludes.
+
+## Local Development
+
+### Services
+
+| Service | Port |
+|----------|------|
+| Spring Boot | 8080 |
+| PostgreSQL | 5433 |
+| Redis | 6379 |
+| Kafka | 9092 |
+| Kafka UI | 8081 |
